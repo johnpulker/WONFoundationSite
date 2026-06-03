@@ -43,6 +43,8 @@ export default function EventsView() {
     price_cents: 0,
     is_active: true,
     image_url: "",
+    use_external_registration: false,
+    external_registration_url: "",
   });
   const [uploadingImage, setUploadingImage] = useState(false);
 
