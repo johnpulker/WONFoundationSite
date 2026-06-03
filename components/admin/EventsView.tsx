@@ -177,6 +177,8 @@ export default function EventsView() {
       price_cents: event.price_cents,
       is_active: event.is_active,
       image_url: event.image_url || "",
+      use_external_registration: false,
+      external_registration_url: "",
     });
     setShowForm(true);
   };
