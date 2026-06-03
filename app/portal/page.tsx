@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import ProfileTab from "@/components/portal/ProfileTab";
 import MembershipTab from "@/components/portal/MembershipTab";
@@ -16,18 +17,26 @@ const tabs = [
 ];
 
 export default function PortalPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("profile");
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [membership, setMembership] = useState<any>(null);
   const [imageError, setImageError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
       setUser(user);
-      
+
       if (user) {
         const { data: userData } = await supabase
           .from("users")
@@ -50,9 +59,11 @@ export default function PortalPage() {
         
         if (membershipData) setMembership(membershipData);
       }
+
+      setLoading(false);
     };
     fetchUserData();
-  }, []);
+  }, [router]);
 
   // Helper function to parse date string as local date (not UTC)
   const parseLocalDate = (dateString: string): Date => {
@@ -68,6 +79,14 @@ export default function PortalPage() {
   const hasMembership = !!membership;
   const isPending = membership?.status === 'pending';
   const membershipLevel = membership?.level || null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-neutral-100 to-neutral-50 flex items-center justify-center">
+        <div className="text-neutral-500 text-lg">Loading your portal…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-100 to-neutral-50">

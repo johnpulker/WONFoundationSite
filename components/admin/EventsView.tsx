@@ -20,8 +20,6 @@ interface Event {
   created_at: string;
   registration_count?: number;
   total_tickets?: number;
-  use_external_registration?: boolean;
-  external_registration_url?: string | null;
 }
 
 export default function EventsView() {
@@ -45,8 +43,6 @@ export default function EventsView() {
     price_cents: 0,
     is_active: true,
     image_url: "",
-    use_external_registration: false,
-    external_registration_url: "",
   });
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -113,8 +109,8 @@ export default function EventsView() {
         price_cents: formData.price_cents,
         is_active: formData.is_active,
         image_url: formData.image_url || null,
-        use_external_registration: formData.use_external_registration,
-        external_registration_url: formData.use_external_registration ? (formData.external_registration_url || null) : null,
+        use_external_registration: false,
+        external_registration_url: null,
       };
 
       const response = await fetch('/api/admin/events', {
@@ -179,8 +175,6 @@ export default function EventsView() {
       price_cents: event.price_cents,
       is_active: event.is_active,
       image_url: event.image_url || "",
-      use_external_registration: event.use_external_registration || false,
-      external_registration_url: event.external_registration_url || "",
     });
     setShowForm(true);
   };
@@ -368,51 +362,16 @@ export default function EventsView() {
                 </label>
                 <input
                   type="text"
-                  required={!formData.use_external_registration}
-                  disabled={formData.use_external_registration}
+                  required
                   value={formData.slug}
                   onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all disabled:bg-neutral-100 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
                   placeholder="e.g., leadership-workshop-2025"
                 />
                 <p className="text-xs text-neutral-500 mt-1">
-                  {formData.use_external_registration 
-                    ? "Not required when using external registration" 
-                    : `This will be used in the event URL: /events/${formData.slug || "your-slug"}`}
+                  {`This will be used in the event URL: /events/${formData.slug || "your-slug"}`}
                 </p>
               </div>
-
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="use_external_registration"
-                  checked={formData.use_external_registration}
-                  onChange={(e) => setFormData({ ...formData, use_external_registration: e.target.checked })}
-                  className="w-5 h-5 rounded border-neutral-300 text-[#871c1c] focus:ring-[#E7C418]"
-                />
-                <label htmlFor="use_external_registration" className="text-sm font-medium text-neutral-700">
-                  Disable website registration (use external registration link)
-                </label>
-              </div>
-
-              {formData.use_external_registration && (
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    External Registration URL *
-                  </label>
-                  <input
-                    type="url"
-                    required={formData.use_external_registration}
-                    value={formData.external_registration_url}
-                    onChange={(e) => setFormData({ ...formData, external_registration_url: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
-                    placeholder="https://example.com/register"
-                  />
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Users will be redirected to this URL instead of the website registration form
-                  </p>
-                </div>
-              )}
 
               <div>
                 <label className="block text-sm font-semibold text-neutral-700 mb-2">
@@ -768,6 +727,15 @@ export default function EventsView() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
                           </a>
+                          <button
+                            onClick={() => window.open(`/api/admin/events/${event.id}/download-registrants`, '_blank')}
+                            className="p-2 text-neutral-500 hover:text-[#871c1c] hover:bg-[#871c1c]/10 rounded-lg transition-colors"
+                            title="Download Registrant PDF"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                            </svg>
+                          </button>
                           <button
                             onClick={() => handleDelete(event)}
                             className="p-2 text-neutral-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

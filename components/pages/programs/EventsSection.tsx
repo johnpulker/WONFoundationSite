@@ -274,7 +274,7 @@ export default function EventsSection() {
                       {/* Event Image - Below Title and Tags, Above Description */}
                       {event.image_url && (
                         <div 
-                          className="relative w-full h-48 md:h-64 mb-4 rounded-lg overflow-hidden cursor-pointer group/image"
+                          className="relative w-full mb-4 rounded-lg overflow-hidden cursor-pointer group/image" style={{ aspectRatio: '3/4' }}
                           onClick={() => setLightboxImage(event.image_url!)}
                         >
                           <img
