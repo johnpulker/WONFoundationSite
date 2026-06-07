@@ -55,7 +55,7 @@ const tiers: Tier[] = [
   },
   {
     id: "leading-lady",
-    name: "Leading Lady",
+    name: "LEADING LADY",
     amount: 5000,
     amountLabel: "$5,000",
     color: "from-[#C9A814] to-[#E7C418]",
@@ -131,7 +131,7 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
           Sponsorship Level
         </p>
         <h3 className="text-3xl font-heading font-bold mb-1">{tier.name}</h3>
-        <p className="text-4xl font-bold text-white/90">{tier.amountLabel}</p>
+        <p className="text-2xl font-bold text-white/90">{tier.amountLabel}</p>
       </div>
 
       {/* Benefits */}
@@ -234,7 +234,7 @@ export default function SponsorshipTiers() {
       </p>
 
       {/* Four-column tier grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {tiers.map((tier, index) => (
           <TierCard key={tier.id} tier={tier} index={index} />
         ))}

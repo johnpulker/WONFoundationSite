@@ -81,8 +81,20 @@ export default function SponsorHero() {
             inspiration, music, and purpose!
           </p>
 
-          {/* Event Details */}
-          <div className="bg-primary/5 border border-primary/15 rounded-2xl p-6 space-y-3">
+        </motion.div>
+      </div>
+
+      {/* Second row — date/location + closing paragraph, side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
+
+        {/* Left — Event Details card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          <div className="bg-primary/5 border border-primary/15 rounded-2xl p-6 space-y-3 h-full">
             <div className="flex items-start gap-3">
               <span className="text-accent mt-1">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -118,14 +130,24 @@ export default function SponsorHero() {
               </div>
             </div>
           </div>
+        </motion.div>
 
-          <p className="text-neutral-600 italic text-base">
+        {/* Right — Closing paragraph */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="flex items-center"
+        >
+          <p className="text-neutral-600 italic text-base leading-relaxed">
             Get ready to rock your best 80s attire, and party with a purpose — all while supporting
             programs that help women rise into leadership roles across our communities. As a nonprofit
             501(c)(3), all proceeds directly support WONF programs that provide mentoring, advocacy,
             training, and access for women and girls striving to lead.
           </p>
         </motion.div>
+
       </div>
     </motion.div>
   );
