@@ -312,7 +312,7 @@ export default function MembersView() {
           <h2 className="text-3xl font-heading text-neutral-900">Members</h2>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={handleExportCSV}>
-              Export CSV
+              Export Members List
             </Button>
             <Button
               variant="primary"
