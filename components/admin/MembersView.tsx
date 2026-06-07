@@ -210,6 +210,59 @@ export default function MembersView() {
     }
   };
 
+  const handleExportCSV = () => {
+    const headers = [
+      "First Name", "Last Name", "Email", "Phone",
+      "Job Title", "Organization", "Occupation",
+      "Address Line 1", "Address Line 2", "City", "State", "Postal Code",
+      "Membership Level", "Membership Status", "Membership Start", "Membership End", "Complimentary",
+      "In Directory", "Show Email Public", "Show Phone Public",
+      "LinkedIn", "Website", "Joined",
+    ];
+
+    const escape = (val: any) => {
+      const str = val == null ? "" : String(val);
+      return str.includes(",") || str.includes('"') || str.includes("\n")
+        ? `"${str.replace(/"/g, '""')}"`
+        : str;
+    };
+
+    const rows = members.map((m) => [
+      m.first_name,
+      m.last_name,
+      m.email,
+      m.profile?.phone ?? "",
+      m.profile?.job_title ?? "",
+      m.profile?.organization ?? "",
+      m.profile?.occupation ?? "",
+      m.profile?.address_line1 ?? "",
+      m.profile?.address_line2 ?? "",
+      m.profile?.city ?? "",
+      m.profile?.state ?? "",
+      m.profile?.postal_code ?? "",
+      m.membership?.level ?? "",
+      m.membership?.status ?? "",
+      m.membership?.start_date ?? "",
+      m.membership?.end_date ?? "",
+      m.membership?.is_complimentary ? "Yes" : "No",
+      m.profile?.show_in_directory ? "Yes" : "No",
+      m.profile?.show_email_public ? "Yes" : "No",
+      m.profile?.show_phone_public ? "Yes" : "No",
+      m.profile?.linkedin_url ?? "",
+      m.profile?.website_url ?? "",
+      m.created_at ? new Date(m.created_at).toLocaleDateString("en-US") : "",
+    ].map(escape).join(","));
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `won-members-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleDelete = async (memberId: string, memberName: string) => {
     if (!confirm(`Are you sure you want to delete "${memberName}"? This action cannot be undone and will delete their account, profile, and all associated data.`)) {
       return;
@@ -258,8 +311,11 @@ export default function MembersView() {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-heading text-neutral-900">Members</h2>
           <div className="flex gap-3">
-            <Button 
-              variant="primary" 
+            <Button variant="secondary" onClick={handleExportCSV}>
+              Export CSV
+            </Button>
+            <Button
+              variant="primary"
               onClick={() => {
                 setIsCreating(true);
                 setIsEditing(true);
