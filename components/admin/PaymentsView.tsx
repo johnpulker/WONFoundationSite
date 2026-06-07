@@ -6,7 +6,7 @@ interface Payment {
   id: string;
   user_id: string | null;
   amount: number;
-  type: "membership" | "donation" | "ticket";
+  type: "membership" | "donation" | "ticket" | "sponsorship";
   status: "completed" | "pending" | "failed";
   provider: string;
   provider_tx_id: string | null;
@@ -22,11 +22,12 @@ interface Payment {
 export default function PaymentsView() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "donation" | "membership" | "ticket">("all");
+  const [filter, setFilter] = useState<"all" | "donation" | "membership" | "ticket" | "sponsorship">("all");
   const [stats, setStats] = useState({
     totalDonations: 0,
     totalMemberships: 0,
     totalTickets: 0,
+    totalSponsorships: 0,
     totalAmount: 0,
   });
 
@@ -52,20 +53,24 @@ export default function PaymentsView() {
       setPayments(transformedPayments);
 
       // Calculate stats (excluding complimentary payments)
-      const donations = transformedPayments.filter((p: Payment) => 
+      const donations = transformedPayments.filter((p: Payment) =>
         p.type === "donation" && p.status === "completed" && !p.is_complimentary
       );
-      const memberships = transformedPayments.filter((p: Payment) => 
+      const memberships = transformedPayments.filter((p: Payment) =>
         p.type === "membership" && p.status === "completed" && !p.is_complimentary
       );
-      const tickets = transformedPayments.filter((p: Payment) => 
+      const tickets = transformedPayments.filter((p: Payment) =>
         p.type === "ticket" && p.status === "completed" && !p.is_complimentary
+      );
+      const sponsorships = transformedPayments.filter((p: Payment) =>
+        p.type === "sponsorship" && p.status === "completed" && !p.is_complimentary
       );
 
       setStats({
         totalDonations: donations.reduce((sum: number, p: Payment) => sum + Number(p.amount || 0), 0),
         totalMemberships: memberships.reduce((sum: number, p: Payment) => sum + Number(p.amount || 0), 0),
         totalTickets: tickets.reduce((sum: number, p: Payment) => sum + Number(p.amount || 0), 0),
+        totalSponsorships: sponsorships.reduce((sum: number, p: Payment) => sum + Number(p.amount || 0), 0),
         totalAmount: transformedPayments
           .filter((p: Payment) => p.status === "completed" && !p.is_complimentary)
           .reduce((sum: number, p: Payment) => sum + Number(p.amount || 0), 0),
@@ -89,6 +94,8 @@ export default function PaymentsView() {
         return "bg-gradient-to-r from-purple-600 to-indigo-600 text-white";
       case "ticket":
         return "bg-gradient-to-r from-[#E7C418] to-orange-500 text-white";
+      case "sponsorship":
+        return "bg-gradient-to-r from-[#871c1c] to-[#5a1a6e] text-white";
       default:
         return "bg-gray-100 text-gray-700";
     }
@@ -102,6 +109,8 @@ export default function PaymentsView() {
         return "★";
       case "ticket":
         return "🎟";
+      case "sponsorship":
+        return "🏆";
       default:
         return "•";
     }
@@ -176,7 +185,7 @@ export default function PaymentsView() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-gradient-to-br from-[#871c1c] to-[#a02323] rounded-xl p-6 text-white">
           <p className="text-white/70 text-sm font-medium mb-1">Total Revenue</p>
           <p className="text-3xl font-heading font-bold">${stats.totalAmount.toLocaleString()}</p>
@@ -202,6 +211,13 @@ export default function PaymentsView() {
           </div>
           <p className="text-2xl font-heading font-bold text-neutral-900">${stats.totalTickets.toLocaleString()}</p>
         </div>
+        <div className="bg-white rounded-xl p-6 border border-neutral-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[#871c1c]">🏆</span>
+            <p className="text-neutral-500 text-sm font-medium">Sponsorships</p>
+          </div>
+          <p className="text-2xl font-heading font-bold text-neutral-900">${stats.totalSponsorships.toLocaleString()}</p>
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -211,6 +227,7 @@ export default function PaymentsView() {
           { id: "donation", label: "Donations", icon: "♥" },
           { id: "membership", label: "Memberships", icon: "★" },
           { id: "ticket", label: "Tickets", icon: "🎟" },
+          { id: "sponsorship", label: "Sponsorships", icon: "🏆" },
         ].map((tab) => (
           <button
             key={tab.id}
