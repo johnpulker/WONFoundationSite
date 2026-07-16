@@ -11,23 +11,16 @@ const log = (step: string, meta?: Record<string, unknown>) => {
 
 /**
  * Calculate membership end date based on registration date
- * - If registered in first 6 months (Jan-Jun), expire on June 30th of the following year
- * - Otherwise, expire exactly one year from registration date
+ * - Always expires on June 30th of the following year, regardless of signup month
  */
 export function calculateMembershipEndDate(startDate: Date): Date {
-  const month = startDate.getMonth()
   const endDate = new Date(startDate)
   endDate.setHours(0, 0, 0, 0)
-
-  if (month <= 5) {
-    endDate.setDate(1)
-    endDate.setFullYear(startDate.getFullYear() + 1)
-    endDate.setMonth(5)
-    endDate.setDate(30)
-  } else {
-    endDate.setFullYear(startDate.getFullYear() + 1)
-  }
-
+  // Always expire June 30th of the next year
+  endDate.setDate(1) // Set to 1st first to avoid month rollover issues
+  endDate.setFullYear(startDate.getFullYear() + 1)
+  endDate.setMonth(5) // June (0-indexed)
+  endDate.setDate(30)
   return endDate
 }
 
