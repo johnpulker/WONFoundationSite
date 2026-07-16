@@ -1032,3 +1032,64 @@ This donation was recorded as a check/mail-in pledge. Please expect a check with
   }
 }
 
+/**
+ * Send admin alert when a PayPal membership payment is received but the buyer's
+ * browser dropped before account creation could complete (new member / guest flow).
+ * Admin must manually create the account and activate the membership.
+ */
+export async function sendAdminOrphanedPaymentAlertEmail(data: {
+  paypalOrderId: string
+  guestEmail: string
+  membershipLevel: string
+  amountPaid: number
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set, skipping orphaned payment alert')
+    return
+  }
+
+  if (!FROM_EMAIL || FROM_EMAIL === 'events@mydomain.com') {
+    console.error('FROM_EMAIL not properly configured — cannot send orphaned payment alert')
+    return
+  }
+
+  const subject = `⚠️ ACTION REQUIRED: Membership payment received but account not created — ${data.guestEmail}`
+
+  const text = `
+ACTION REQUIRED — Membership Payment Without Account Creation
+=============================================================
+
+A PayPal payment for a new membership was successfully captured, but the buyer's
+browser disconnected before their account could be created on the website. The
+money has been received by PayPal; the member just needs to be set up manually.
+
+Payment Details
+---------------
+PayPal Order ID : ${data.paypalOrderId}
+Buyer Email     : ${data.guestEmail}
+Membership Level: ${data.membershipLevel}
+Amount Paid     : $${data.amountPaid.toFixed(2)}
+
+Steps to Resolve
+----------------
+1. Log into the WON Foundation admin panel.
+2. Create a new member account using the buyer's email (${data.guestEmail}).
+3. Activate a ${data.membershipLevel} membership for that account.
+4. Notify the member that their account is ready and send them a temporary password.
+
+Do NOT ask the buyer to pay again — payment has already been received.
+  `.trim()
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject,
+      text,
+    })
+    console.log('[emails] orphaned payment alert sent for order', data.paypalOrderId)
+  } catch (error) {
+    console.error('[emails] failed to send orphaned payment alert:', error)
+  }
+}
+

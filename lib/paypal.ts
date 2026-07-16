@@ -3,6 +3,67 @@
  * Handles authentication and order creation/capture.
  */
 
+export interface PayPalWebhookHeaders {
+  'paypal-auth-algo': string
+  'paypal-cert-url': string
+  'paypal-transmission-id': string
+  'paypal-transmission-sig': string
+  'paypal-transmission-time': string
+}
+
+/**
+ * Verify a PayPal webhook signature using PayPal's verification API.
+ * Returns true if the signature is valid.
+ */
+export async function verifyPayPalWebhookSignature(
+  webhookId: string,
+  headers: PayPalWebhookHeaders,
+  rawBody: string
+): Promise<boolean> {
+  const baseUrl = (process.env.PAYPAL_BASE_URL || 'https://api-m.sandbox.paypal.com').trim()
+
+  let accessToken: string
+  try {
+    accessToken = await getPayPalAccessToken()
+  } catch (err) {
+    console.error('[paypal-webhook] failed to get access token for verification:', err)
+    return false
+  }
+
+  let parsedBody: unknown
+  try {
+    parsedBody = JSON.parse(rawBody)
+  } catch {
+    console.error('[paypal-webhook] invalid JSON body for verification')
+    return false
+  }
+
+  const response = await fetch(`${baseUrl}/v1/notifications/verify-webhook-signature`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      auth_algo: headers['paypal-auth-algo'],
+      cert_url: headers['paypal-cert-url'],
+      transmission_id: headers['paypal-transmission-id'],
+      transmission_sig: headers['paypal-transmission-sig'],
+      transmission_time: headers['paypal-transmission-time'],
+      webhook_id: webhookId,
+      webhook_event: parsedBody,
+    }),
+  })
+
+  if (!response.ok) {
+    console.error('[paypal-webhook] verification API error:', response.status, await response.text())
+    return false
+  }
+
+  const data = await response.json()
+  return data.verification_status === 'SUCCESS'
+}
+
 interface PayPalAccessTokenResponse {
   access_token: string
   token_type: string

@@ -7,12 +7,14 @@ import ProgramsOverview from "@/components/pages/programs/ProgramsOverview";
 import LeadershipMentoring from "@/components/pages/programs/LeadershipMentoring";
 import NetworkingTraining from "@/components/pages/programs/NetworkingTraining";
 import EventsSection from "@/components/pages/programs/EventsSection";
+import EventVideosSection from "@/components/pages/programs/EventVideosSection";
 
 const subNavItems = [
   { id: "overview", label: "Overview" },
   { id: "mentoring", label: "Leadership Mentoring" },
   { id: "networking", label: "Networking & Training" },
   { id: "events", label: "Events" },
+  { id: "event-videos", label: "Event Videos" },
 ];
 
 // Section Divider Component
@@ -123,8 +125,15 @@ function ProgramsEventsContent() {
           <SectionDivider />
           
           {/* Events Section */}
-          <section id="events" className="scroll-mt-24 pb-8">
+          <section id="events" className="scroll-mt-24">
             <EventsSection />
+          </section>
+
+          <SectionDivider />
+
+          {/* Event Videos Section */}
+          <section id="event-videos" className="scroll-mt-24 pb-8">
+            <EventVideosSection />
           </section>
         </div>
       </div>
