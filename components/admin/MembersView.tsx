@@ -72,6 +72,7 @@ export default function MembersView() {
     linkedin_url: "",
     website_url: "",
     membership_level: "",
+    membership_status: "pending",
     is_complimentary: false,
     membership_expiration_date: "",
     notes: "",
@@ -192,6 +193,7 @@ export default function MembersView() {
           linkedin_url: "",
           website_url: "",
           membership_level: "",
+          membership_status: "pending",
           is_complimentary: false,
           membership_expiration_date: "",
           notes: "",
@@ -341,6 +343,7 @@ export default function MembersView() {
                   linkedin_url: "",
                   website_url: "",
                   membership_level: "",
+                  membership_status: "pending",
                   is_complimentary: false,
                   membership_expiration_date: "2027-06-30",
                   notes: "",
@@ -472,6 +475,7 @@ export default function MembersView() {
                               linkedin_url: member.profile?.linkedin_url || "",
                               website_url: member.profile?.website_url || "",
                               membership_level: member.membership?.level || "",
+                              membership_status: member.membership?.status || "pending",
                               is_complimentary: member.membership?.is_complimentary || false,
                               membership_expiration_date: member.membership?.end_date
                                 ? member.membership.end_date.split('T')[0]
@@ -725,6 +729,22 @@ export default function MembersView() {
                     </select>
                     {editFormData.membership_level && (
                       <>
+                        <div className="mt-3">
+                          <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                            Membership Status
+                          </label>
+                          <select
+                            value={editFormData.membership_status}
+                            onChange={(e) => setEditFormData({ ...editFormData, membership_status: e.target.value })}
+                            className="w-full px-4 py-2 rounded-lg border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                          </select>
+                          <p className="text-xs text-neutral-500 mt-1">
+                            Set to Active once check payment is received, or to confirm a manually added membership.
+                          </p>
+                        </div>
                         <div className="mt-3">
                           <label className="block text-sm font-semibold text-neutral-700 mb-2">
                             Membership Expiration Date (Optional)
@@ -996,6 +1016,7 @@ export default function MembersView() {
                         linkedin_url: "",
                         website_url: "",
                         membership_level: "",
+                        membership_status: "pending",
                         is_complimentary: false,
                         membership_expiration_date: "",
                         notes: "",

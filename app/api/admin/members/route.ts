@@ -243,7 +243,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Handle membership updates
-    if (updateData.membership_level !== undefined || updateData.is_complimentary !== undefined || updateData.membership_expiration_date !== undefined) {
+    if (updateData.membership_level !== undefined || updateData.membership_status !== undefined || updateData.is_complimentary !== undefined || updateData.membership_expiration_date !== undefined) {
       // Get the most recent membership (active or pending) to update
       const { data: existingMemberships } = await supabase
         .from('memberships')
@@ -280,6 +280,9 @@ export async function PUT(request: NextRequest) {
           const membershipUpdates: any = {
             level: updateData.membership_level,
             updated_at: new Date().toISOString(),
+          }
+          if (updateData.membership_status !== undefined && ['active', 'pending'].includes(updateData.membership_status)) {
+            membershipUpdates.status = updateData.membership_status
           }
           if (updateData.is_complimentary !== undefined) {
             membershipUpdates.is_complimentary = updateData.is_complimentary
@@ -344,6 +347,9 @@ export async function PUT(request: NextRequest) {
         } else {
           // Create new membership
           const startDate = new Date()
+          const newStatus = (updateData.membership_status && ['active', 'pending'].includes(updateData.membership_status))
+            ? updateData.membership_status
+            : 'pending'
           await supabase
             .from('memberships')
             .insert({
@@ -351,10 +357,25 @@ export async function PUT(request: NextRequest) {
               level: updateData.membership_level,
               start_date: startDate.toISOString().split('T')[0],
               end_date: endDate.toISOString().split('T')[0],
-              status: 'active',
+              status: newStatus,
               auto_renew: false,
               is_complimentary: updateData.is_complimentary || false,
             })
+        }
+      } else if (updateData.membership_status !== undefined && existingMemberships && existingMemberships.length > 0 && updateData.membership_level === undefined) {
+        // Just update the membership status (standalone status change)
+        if (['active', 'pending'].includes(updateData.membership_status)) {
+          const { error: statusError } = await supabase
+            .from('memberships')
+            .update({
+              status: updateData.membership_status,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingMemberships[0].id)
+          if (statusError) {
+            console.error('Error updating membership status:', statusError)
+            return NextResponse.json({ error: `Failed to update membership status: ${statusError.message}` }, { status: 500 })
+          }
         }
       } else if (updateData.is_complimentary !== undefined && existingMemberships && existingMemberships.length > 0) {
         // Just update the complimentary flag
@@ -618,6 +639,10 @@ export async function POST(request: NextRequest) {
       
       const membershipPrice = membershipPrices[body.membership_level] || 0
 
+      const newMemberStatus = (body.membership_status && ['active', 'pending'].includes(body.membership_status))
+        ? body.membership_status
+        : 'pending'
+
       const { error: membershipError } = await supabase
         .from('memberships')
         .insert({
@@ -625,7 +650,7 @@ export async function POST(request: NextRequest) {
           level: body.membership_level,
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0],
-          status: 'active',
+          status: newMemberStatus,
           auto_renew: false,
           is_complimentary: body.is_complimentary || false,
         })
