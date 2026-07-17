@@ -243,7 +243,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Handle membership updates
-    if (updateData.membership_level !== undefined || updateData.is_complimentary !== undefined || updateData.membership_expiration_year !== undefined) {
+    if (updateData.membership_level !== undefined || updateData.is_complimentary !== undefined || updateData.membership_expiration_date !== undefined) {
       // Get the most recent membership (active or pending) to update
       const { data: existingMemberships } = await supabase
         .from('memberships')
@@ -264,10 +264,10 @@ export async function PUT(request: NextRequest) {
       } else if (updateData.membership_level && ['General', 'Sustaining', 'Youth'].includes(updateData.membership_level)) {
         // Calculate end date: use selected year if provided, otherwise auto-calculate
         let endDate: Date
-        if (updateData.membership_expiration_year && !isNaN(parseInt(updateData.membership_expiration_year))) {
-          // Use selected year - set to June 30 of that year
-          const selectedYear = parseInt(updateData.membership_expiration_year)
-          endDate = new Date(selectedYear, 5, 30) // June 30 (month is 0-indexed)
+        if (updateData.membership_expiration_date) {
+          // Use selected date directly
+          const [year, month, day] = updateData.membership_expiration_date.split('-').map(Number)
+          endDate = new Date(year, month - 1, day)
         } else {
           // Auto-calculate based on registration date
           const startDate = new Date()
@@ -284,7 +284,7 @@ export async function PUT(request: NextRequest) {
           if (updateData.is_complimentary !== undefined) {
             membershipUpdates.is_complimentary = updateData.is_complimentary
           }
-          if (updateData.membership_expiration_year !== undefined && updateData.membership_expiration_year !== '') {
+          if (updateData.membership_expiration_date !== undefined && updateData.membership_expiration_date !== '') {
             membershipUpdates.end_date = endDate.toISOString().split('T')[0]
           }
           const { error: updateError } = await supabase
@@ -406,12 +406,12 @@ export async function PUT(request: NextRequest) {
             console.log(`Updated ${updatedPayments?.length || 0} payment(s) complimentary status to ${updateData.is_complimentary} for user ${id}, level ${membership.level}, membership ${membership.id}`)
           }
         }
-      } else if (updateData.membership_expiration_year !== undefined && existingMemberships && existingMemberships.length > 0) {
-        // Just update the expiration year
+      } else if (updateData.membership_expiration_date !== undefined && existingMemberships && existingMemberships.length > 0) {
+        // Just update the expiration date
         let endDate: Date
-        if (updateData.membership_expiration_year && !isNaN(parseInt(updateData.membership_expiration_year))) {
-          const selectedYear = parseInt(updateData.membership_expiration_year)
-          endDate = new Date(selectedYear, 5, 30) // June 30
+        if (updateData.membership_expiration_date) {
+          const [year, month, day] = updateData.membership_expiration_date.split('-').map(Number)
+          endDate = new Date(year, month - 1, day)
         } else {
           const startDate = new Date()
           endDate = calculateMembershipEndDate(startDate)
@@ -607,10 +607,10 @@ export async function POST(request: NextRequest) {
       
       // Calculate end date: use selected year if provided, otherwise auto-calculate
       let endDate: Date
-      if (body.membership_expiration_year && !isNaN(parseInt(body.membership_expiration_year))) {
-        // Use selected year - set to June 30 of that year
-        const selectedYear = parseInt(body.membership_expiration_year)
-        endDate = new Date(selectedYear, 5, 30) // June 30 (month is 0-indexed)
+      if (body.membership_expiration_date) {
+        // Use selected date directly
+        const [year, month, day] = body.membership_expiration_date.split('-').map(Number)
+        endDate = new Date(year, month - 1, day)
       } else {
         // Auto-calculate based on registration date
         endDate = calculateMembershipEndDate(startDate)

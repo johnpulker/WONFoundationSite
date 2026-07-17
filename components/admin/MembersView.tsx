@@ -73,7 +73,7 @@ export default function MembersView() {
     website_url: "",
     membership_level: "",
     is_complimentary: false,
-    membership_expiration_year: "",
+    membership_expiration_date: "",
     notes: "",
     skip_welcome_email: false,
   });
@@ -193,7 +193,7 @@ export default function MembersView() {
           website_url: "",
           membership_level: "",
           is_complimentary: false,
-          membership_expiration_year: "",
+          membership_expiration_date: "",
           notes: "",
           skip_welcome_email: false,
         });
@@ -342,7 +342,7 @@ export default function MembersView() {
                   website_url: "",
                   membership_level: "",
                   is_complimentary: false,
-                  membership_expiration_year: "",
+                  membership_expiration_date: "2027-06-30",
                   notes: "",
                   skip_welcome_email: false,
                 });
@@ -473,9 +473,9 @@ export default function MembersView() {
                               website_url: member.profile?.website_url || "",
                               membership_level: member.membership?.level || "",
                               is_complimentary: member.membership?.is_complimentary || false,
-                              membership_expiration_year: member.membership?.end_date 
-                                ? new Date(member.membership.end_date).getFullYear().toString()
-                                : "",
+                              membership_expiration_date: member.membership?.end_date
+                                ? member.membership.end_date.split('T')[0]
+                                : "2027-06-30",
                               notes: member.notes || "",
                               skip_welcome_email: false,
                             });
@@ -727,23 +727,14 @@ export default function MembersView() {
                       <>
                         <div className="mt-3">
                           <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                            Membership Expiration Year (Optional)
+                            Membership Expiration Date (Optional)
                           </label>
-                          <select
-                            value={editFormData.membership_expiration_year}
-                            onChange={(e) => setEditFormData({ ...editFormData, membership_expiration_year: e.target.value })}
+                          <input
+                            type="date"
+                            value={editFormData.membership_expiration_date}
+                            onChange={(e) => setEditFormData({ ...editFormData, membership_expiration_date: e.target.value })}
                             className="w-full px-4 py-2 rounded-lg border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary"
-                          >
-                            <option value="">Auto-calculate (default)</option>
-                            {Array.from({ length: 15 }, (_, i) => {
-                              const year = new Date().getFullYear() + i; // Show current year through 14 years ahead
-                              return (
-                                <option key={year} value={year.toString()}>
-                                  {year}
-                                </option>
-                              );
-                            })}
-                          </select>
+                          />
                           <p className="text-xs text-neutral-500 mt-1">
                             If not specified, expiration will be calculated automatically based on registration date.
                           </p>
@@ -1006,7 +997,7 @@ export default function MembersView() {
                         website_url: "",
                         membership_level: "",
                         is_complimentary: false,
-                        membership_expiration_year: "",
+                        membership_expiration_date: "",
                         notes: "",
                         skip_welcome_email: false,
                       });
