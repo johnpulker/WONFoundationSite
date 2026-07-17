@@ -309,7 +309,6 @@ export default function EventsView() {
             setEditingEvent(null);
             setFormData({
               name: "",
-              slug: "",
               description: "",
               date: "",
               time: "18:00",
