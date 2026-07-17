@@ -30,7 +30,6 @@ export default function EventsView() {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    slug: "",
     description: "",
     date: "",
     time: "18:00",
@@ -80,12 +79,16 @@ export default function EventsView() {
     }
   };
 
-  const generateSlug = (name: string) => {
-    return name
+  const generateSlug = (name: string, date?: string) => {
+    const namePart = name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "")
-      + "-" + new Date().getFullYear();
+      .replace(/(^-|-$)/g, "");
+    if (date) {
+      const [year, month, day] = date.split("-");
+      return `${namePart}-${parseInt(month)}-${parseInt(day)}-${year}`;
+    }
+    return namePart;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +102,7 @@ export default function EventsView() {
       const eventData = {
         id: editingEvent?.id,
         name: formData.name,
-        slug: formData.slug || generateSlug(formData.name),
+        slug: generateSlug(formData.name, formData.date),
         description: formData.description || null,
         date: dateTime,
         venue_name: formData.venue_name || null,
@@ -134,7 +137,6 @@ export default function EventsView() {
       setEditingEvent(null);
       setFormData({
         name: "",
-        slug: "",
         description: "",
         date: "",
         time: "18:00",
@@ -164,7 +166,6 @@ export default function EventsView() {
     setEditingEvent(event);
     setFormData({
       name: event.name,
-      slug: event.slug,
       description: event.description || "",
       date: eventDate.toISOString().split("T")[0],
       time: eventDate.toTimeString().slice(0, 5),
@@ -358,23 +359,6 @@ export default function EventsView() {
                   className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
                   placeholder="e.g., Leadership Development Workshop"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                  URL Slug *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
-                  placeholder="e.g., leadership-workshop-2025"
-                />
-                <p className="text-xs text-neutral-500 mt-1">
-                  {`This will be used in the event URL: /events/${formData.slug || "your-slug"}`}
-                </p>
               </div>
 
               <div>
