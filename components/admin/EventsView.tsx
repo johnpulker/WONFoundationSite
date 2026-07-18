@@ -739,7 +739,7 @@ export default function EventsView() {
                           <button
                             onClick={() => window.open(`/api/admin/events/${event.id}/download-registrants`, '_blank')}
                             className="p-2 text-neutral-500 hover:text-[#871c1c] hover:bg-[#871c1c]/10 rounded-lg transition-colors"
-                            title="Download Registrant PDF"
+                            title="Download Registrant CSV"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
