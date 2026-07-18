@@ -315,6 +315,7 @@ export default function EventsView() {
             setFormData({
               name: "",
               description: "",
+              notes: "",
               date: "",
               time: "18:00",
               venue_name: "",
