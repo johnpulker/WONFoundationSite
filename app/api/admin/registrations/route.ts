@@ -113,3 +113,36 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = await requireAdminAuth(request)
+    if (!auth.valid) {
+      return auth.response!
+    }
+
+    const { searchParams } = new URL(request.url)
+    const registrationId = searchParams.get('id')
+
+    if (!registrationId) {
+      return NextResponse.json({ error: 'Registration ID is required' }, { status: 400 })
+    }
+
+    const supabase = createAdminClient()
+
+    const { error } = await supabase
+      .from('event_registrations')
+      .delete()
+      .eq('id', registrationId)
+
+    if (error) {
+      console.error('Error deleting registration:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error in admin registrations DELETE:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+

@@ -17,6 +17,7 @@ interface Event {
   price_cents: number;
   is_active: boolean;
   image_url: string | null;
+  notes: string | null;
   created_at: string;
   registration_count?: number;
   total_tickets?: number;
@@ -31,6 +32,7 @@ export default function EventsView() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    notes: "",
     date: "",
     time: "18:00",
     venue_name: "",
@@ -114,6 +116,7 @@ export default function EventsView() {
         price_cents: formData.price_cents,
         is_active: formData.is_active,
         image_url: formData.image_url || null,
+        notes: formData.notes || null,
         use_external_registration: false,
         external_registration_url: null,
       };
@@ -138,6 +141,7 @@ export default function EventsView() {
       setFormData({
         name: "",
         description: "",
+        notes: "",
         date: "",
         time: "18:00",
         venue_name: "",
@@ -167,6 +171,7 @@ export default function EventsView() {
     setFormData({
       name: event.name,
       description: event.description || "",
+      notes: event.notes || "",
       date: eventDate.toISOString().split("T")[0],
       time: eventDate.toTimeString().slice(0, 5),
       venue_name: event.venue_name || "",
@@ -371,6 +376,22 @@ export default function EventsView() {
                   className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all resize-none"
                   placeholder="Describe the event..."
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Event Notes
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all resize-none"
+                  placeholder="e.g., Parking is available in the main garage. Please bring your confirmation email."
+                />
+                <p className="text-xs text-neutral-500 mt-1">
+                  These notes will appear in the customer confirmation email.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

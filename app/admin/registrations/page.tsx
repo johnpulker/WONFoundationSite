@@ -33,6 +33,7 @@ function AdminRegistrationsContent() {
   const [error, setError] = useState<string | null>(null)
   const [eventFilter, setEventFilter] = useState<string>('')
   const [showPending, setShowPending] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     // Check if session is valid by making a server-side validation request
@@ -122,6 +123,32 @@ function AdminRegistrationsContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventFilter, showPending])
+
+  const handleDelete = async (reg: Registration) => {
+    if (!confirm(`Are you sure you want to delete the registration for ${reg.full_name}? This cannot be undone.`)) {
+      return
+    }
+
+    setDeletingId(reg.id)
+    try {
+      const response = await fetch(`/api/admin/registrations?id=${reg.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        alert(data.error || 'Failed to delete registration')
+        return
+      }
+
+      setRegistrations((prev) => prev.filter((r) => r.id !== reg.id))
+    } catch (err) {
+      alert('Failed to delete registration')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const exportCSV = () => {
     const headers = ['Date', 'Event', 'Name', 'Email', 'Phone', 'Tickets', 'Payment Status', 'Payment ID']
@@ -248,6 +275,7 @@ function AdminRegistrationsContent() {
                     <th className="text-left py-3 px-4 font-semibold text-neutral-900">Tickets</th>
                     <th className="text-left py-3 px-4 font-semibold text-neutral-900">Payment Status</th>
                     <th className="text-left py-3 px-4 font-semibold text-neutral-900">Payment ID</th>
+                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -283,6 +311,15 @@ function AdminRegistrationsContent() {
                       </td>
                       <td className="py-3 px-4 text-sm text-neutral-700 font-mono text-xs">
                         {reg.payment_id || '-'}
+                      </td>
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={() => handleDelete(reg)}
+                          disabled={deletingId === reg.id}
+                          className="px-3 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 rounded transition-colors"
+                        >
+                          {deletingId === reg.id ? 'Deleting...' : 'Delete'}
+                        </button>
                       </td>
                     </tr>
                   ))}

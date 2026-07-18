@@ -16,6 +16,7 @@ interface Event {
   city?: string | null
   state?: string | null
   postal_code?: string | null
+  notes?: string | null
 }
 
 interface Registration {
@@ -58,54 +59,203 @@ export async function sendUserConfirmationEmail(
     throw new Error('Invalid event date format')
   }
   
-  // Get user's timezone for proper conversion
-  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  
-  // Format date and time in user's local timezone
+  // Format date and time in US Eastern time
   const formattedDate = eventDate.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    timeZone: userTimezone,
+    timeZone: 'America/New_York',
   })
   const formattedTime = eventDate.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     timeZoneName: 'short',
-    timeZone: userTimezone,
+    timeZone: 'America/New_York',
   })
 
-  const venueInfo = [
+  const venueLines = [
     event.venue_name,
     event.venue_address,
     [event.city, event.state, event.postal_code].filter(Boolean).join(', '),
-  ]
-    .filter(Boolean)
-    .join('\n')
+  ].filter(Boolean)
 
-  const paymentInfo = isPaid && orderId
-    ? `\n\nPayment Status: Paid via PayPal\nOrder ID: ${orderId}`
-    : '\n\nThis is a free event. No payment required.'
+  const venueInfoText = venueLines.join('\n')
+  const venueInfoHtml = venueLines.map(l => `<div>${l}</div>`).join('')
 
-  const emailContent = `
+  const paymentInfoText = isPaid && orderId
+    ? `Payment Status: Paid via PayPal\nOrder ID: ${orderId}`
+    : 'This is a free event. No payment required.'
+
+  const paymentInfoHtml = isPaid && orderId
+    ? `<tr><td style="padding:8px 0;color:#6b7280;">Payment Status:</td><td style="padding:8px 0;font-weight:bold;">Paid via PayPal</td></tr>
+       <tr><td style="padding:8px 0;color:#6b7280;">Order ID:</td><td style="padding:8px 0;font-weight:bold;">${orderId}</td></tr>`
+    : `<tr><td colspan="2" style="padding:8px 0;color:#6b7280;">This is a free event. No payment required.</td></tr>`
+
+  const siteUrl = SITE_URL || 'https://wonfoundation.net'
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; line-height: 1.6; color: #374151;">
+    <div style="max-width: 700px; margin: 0 auto; padding: 20px;">
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #871c1c 0%, #a02323 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+        <h1 style="color: #E7C418; margin: 0; font-size: 28px; font-weight: bold;">
+          Women Officials Network Foundation
+        </h1>
+      </div>
+
+      <!-- Main Content -->
+      <div style="background: white; padding: 40px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          Dear ${registration.full_name},
+        </p>
+
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          Thank you for registering for <strong>${event.name}</strong>! We look forward to seeing you at the event.
+        </p>
+
+        <!-- Event Details -->
+        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 15px 0; color: #1f2937;">Event Details:</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; width: 40%;">Event:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${event.name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Date &amp; Time:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${formattedDate} at ${formattedTime}</td>
+            </tr>
+            ${venueLines.length > 0 ? `<tr>
+              <td style="padding: 8px 0; color: #6b7280; vertical-align: top;">Venue:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${venueInfoHtml}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <!-- Registration Details -->
+        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 15px 0; color: #1f2937;">Registration Details:</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; width: 40%;">Tickets:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${registration.tickets}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Email:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${registration.email}</td>
+            </tr>
+            ${registration.phone ? `<tr>
+              <td style="padding: 8px 0; color: #6b7280;">Phone:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${registration.phone}</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Registration ID:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${registration.id}</td>
+            </tr>
+            ${paymentInfoHtml}
+          </table>
+        </div>
+
+        ${event.notes ? `
+        <!-- Event Notes -->
+        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #871c1c;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 10px 0; color: #1f2937;">Event Notes:</h2>
+          <p style="margin: 0; font-size: 15px; color: #374151;">${event.notes}</p>
+        </div>
+        ` : ''}
+
+        <p style="font-size: 16px; margin: 0 0 30px 0; font-weight: bold;">
+          Here's to a WONderful event!
+        </p>
+
+        <!-- Contact & Social -->
+        <div style="margin-bottom: 30px;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 15px 0; color: #1f2937;">Organization Contact Information:</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Name:</td>
+              <td style="padding: 8px 0; font-weight: bold;">Women Officials Network Foundation</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Address:</td>
+              <td style="padding: 8px 0; font-weight: bold;">6725 Daly Road, Ste. 252572, West Bloomfield, MI 48325</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Contact Email:</td>
+              <td style="padding: 8px 0; font-weight: bold;"><a href="mailto:${ADMIN_EMAIL}" style="color: #871c1c; text-decoration: underline;">${ADMIN_EMAIL}</a></td>
+            </tr>
+          </table>
+
+          <!-- Social Media Links -->
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Follow us:</p>
+            <div style="display: inline-flex; gap: 15px; align-items: center;">
+              <a href="https://www.facebook.com/womenofficialsmi" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="color: #1877F2; vertical-align: middle;">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+              </a>
+              <a href="https://www.instagram.com/thewonfoundation/#" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="color: #E4405F; vertical-align: middle;">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size: 16px; margin: 30px 0 0 0; text-align: center; color: #871c1c; font-weight: bold;">
+          Thanks again for supporting Women Officials Network Foundation!
+        </p>
+
+        <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center; color: #6b7280; font-size: 12px;">
+          <p style="margin: 0;">
+            Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+  `.trim()
+
+  const textContent = `
 Hello ${registration.full_name},
 
-Thank you for registering for ${event.name}!
+Thank you for registering for ${event.name}! We look forward to seeing you at the event.
 
 Event Details:
 ${event.name}
 ${formattedDate} at ${formattedTime}
-${venueInfo}
+${venueInfoText}
 
 Registration Details:
 - Tickets: ${registration.tickets}
-- Email: ${registration.email}${registration.phone ? `\n- Phone: ${registration.phone}` : ''}${paymentInfo}
+- Email: ${registration.email}${registration.phone ? `\n- Phone: ${registration.phone}` : ''}
+- Registration ID: ${registration.id}
+- ${paymentInfoText}
 
-We look forward to seeing you at the event!
+${event.notes ? `Event Notes:\n${event.notes}\n\n` : ''}Here's to a WONderful event!
 
-Best regards,
-The Event Team
+Organization Contact Information:
+Name: Women Officials Network Foundation
+Address: 6725 Daly Road, Ste. 252572, West Bloomfield, MI 48325
+Contact Email: ${ADMIN_EMAIL}
+
+Follow us:
+Facebook: https://www.facebook.com/womenofficialsmi
+Instagram: https://www.instagram.com/thewonfoundation/#
+
+Thanks again for supporting Women Officials Network Foundation!
+
+Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All rights reserved.
   `.trim()
 
   try {
@@ -119,7 +269,8 @@ The Event Team
       from: FROM_EMAIL,
       to: registration.email,
       subject: `Registration Confirmation: ${event.name}`,
-      text: emailContent,
+      html: htmlContent,
+      text: textContent,
     })
 
     if (result.error) {
@@ -180,22 +331,19 @@ export async function sendOrganizerNotificationEmail(
     throw new Error('Invalid event date format')
   }
   
-  // Get user's timezone for proper conversion
-  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  
-  // Format date and time in user's local timezone
+  // Format date and time in US Eastern time
   const formattedDate = eventDate.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    timeZone: userTimezone,
+    timeZone: 'America/New_York',
   })
   const formattedTime = eventDate.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     timeZoneName: 'short',
-    timeZone: userTimezone,
+    timeZone: 'America/New_York',
   })
 
   const paymentInfo = isPaid && orderId
@@ -495,7 +643,25 @@ export async function sendMembershipConfirmationEmail(
         <p style="font-size: 16px; margin: 0 0 30px 0; font-weight: bold;">
           Here's to a WONderful year!
         </p>
-        
+
+        ${data.paymentMethod?.toLowerCase().includes('check') ? `
+        <!-- Check Payment Instructions -->
+        <div style="background: #fff8e1; border: 2px solid #E7C418; border-radius: 8px; padding: 24px; margin-bottom: 30px;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 12px 0; color: #871c1c;">Action Required: Mail Your Check</h2>
+          <p style="font-size: 15px; margin: 0 0 12px 0; color: #374151;">
+            We&apos;ve recorded your membership to be paid by check. Please mail your check within 7 days, made payable to <strong>Women Officials Network Foundation</strong>, to:
+          </p>
+          <p style="font-size: 15px; font-weight: bold; margin: 0 0 12px 0; color: #1f2937; line-height: 1.8;">
+            Women Officials Network Foundation<br/>
+            6725 Daly Road, Ste 252572<br/>
+            West Bloomfield, MI 48325
+          </p>
+          <p style="font-size: 14px; margin: 0; color: #6b7280;">
+            Your membership will be fully activated once your check is received and processed.
+          </p>
+        </div>
+        ` : ''}
+
         <div style="border-top: 2px solid #871c1c; padding-top: 30px; margin-top: 30px;">
           <p style="font-size: 18px; font-weight: bold; margin: 0 0 20px 0; color: #871c1c;">
             THIS IS YOUR TRANSACTION RECEIPT. Please save this receipt for your records.
@@ -665,7 +831,17 @@ For questions, please contact the WONF administrator at: ${ADMIN_EMAIL}
 
 Here's to a WONderful year!
 
-THIS IS YOUR TRANSACTION RECEIPT. Please save this receipt for your records.
+${data.paymentMethod?.toLowerCase().includes('check') ? `ACTION REQUIRED: MAIL YOUR CHECK
+------------------------------------
+We've recorded your membership to be paid by check. Please mail your check within 7 days, made payable to Women Officials Network Foundation, to:
+
+Women Officials Network Foundation
+6725 Daly Road, Ste 252572
+West Bloomfield, MI 48325
+
+Your membership will be fully activated once your check is received and processed.
+
+` : ''}THIS IS YOUR TRANSACTION RECEIPT. Please save this receipt for your records.
 
 Activity Summary:
 Membership Total: $${data.membershipPrice.toFixed(2)}
@@ -1090,6 +1266,182 @@ Do NOT ask the buyer to pay again — payment has already been received.
     console.log('[emails] orphaned payment alert sent for order', data.paypalOrderId)
   } catch (error) {
     console.error('[emails] failed to send orphaned payment alert:', error)
+  }
+}
+
+/**
+ * Send account activation notification to a member when admin changes their status from pending → active
+ */
+export async function sendMemberActivationEmail(data: {
+  email: string
+  firstName: string
+  lastName: string
+  membershipLevel: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set, skipping member activation email')
+    return
+  }
+
+  if (!FROM_EMAIL || FROM_EMAIL === 'events@mydomain.com') {
+    console.error('FROM_EMAIL not properly configured, skipping member activation email')
+    return
+  }
+
+  const fullName = `${data.firstName} ${data.lastName}`.trim() || data.email
+  const siteUrl = SITE_URL || 'https://wonfoundation.net'
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; line-height: 1.6; color: #374151;">
+    <div style="max-width: 700px; margin: 0 auto; padding: 20px;">
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #871c1c 0%, #a02323 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+        <h1 style="color: #E7C418; margin: 0; font-size: 28px; font-weight: bold;">
+          Women Officials Network Foundation
+        </h1>
+      </div>
+
+      <!-- Main Content -->
+      <div style="background: white; padding: 40px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          Dear ${data.firstName || fullName},
+        </p>
+
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          Great news! The WON Foundation has received your payment and your membership account is now <strong>active</strong>.
+        </p>
+
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          We truly appreciate your support and look forward to working with you as a valued member of our community.
+        </p>
+
+        <!-- Membership Details Box -->
+        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 15px 0; color: #1f2937;">Membership Details:</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Membership Level:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${data.membershipLevel}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Status:</td>
+              <td style="padding: 8px 0; font-weight: bold; color: #16a34a;">Active</td>
+            </tr>
+          </table>
+        </div>
+
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          You can now log in to your account on our website to access your member benefits, update your profile, and connect with the WON Foundation community.
+        </p>
+
+        <!-- Login Button -->
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${siteUrl}/login"
+             style="display: inline-block; background: linear-gradient(135deg, #871c1c, #a02323); color: white; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-size: 16px; font-weight: bold;">
+            Log In to Your Account
+          </a>
+        </div>
+
+        <p style="font-size: 16px; margin: 0 0 30px 0; font-weight: bold;">
+          Here's to a WONderful year!
+        </p>
+
+        <!-- Contact & Social -->
+        <div style="margin-bottom: 30px;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 15px 0; color: #1f2937;">Organization Contact Information:</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Name:</td>
+              <td style="padding: 8px 0; font-weight: bold;">Women Officials Network Foundation</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Address:</td>
+              <td style="padding: 8px 0; font-weight: bold;">6725 Daly Road, Ste. 252572, West Bloomfield, MI 48325</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Contact Email:</td>
+              <td style="padding: 8px 0; font-weight: bold;"><a href="mailto:${ADMIN_EMAIL}" style="color: #871c1c; text-decoration: underline;">${ADMIN_EMAIL}</a></td>
+            </tr>
+          </table>
+
+          <!-- Social Media Links -->
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Follow us:</p>
+            <div style="display: inline-flex; gap: 15px; align-items: center;">
+              <a href="https://www.facebook.com/womenofficialsmi" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="color: #1877F2; vertical-align: middle;">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+              </a>
+              <a href="https://www.instagram.com/thewonfoundation/#" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="color: #E4405F; vertical-align: middle;">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size: 16px; margin: 30px 0 0 0; text-align: center; color: #871c1c; font-weight: bold;">
+          Thanks again for supporting Women Officials Network Foundation!
+        </p>
+
+        <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center; color: #6b7280; font-size: 12px;">
+          <p style="margin: 0;">
+            Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+  `.trim()
+
+  const textContent = `
+Dear ${data.firstName || fullName},
+
+Great news! The WON Foundation has received your payment and your membership account is now active.
+
+We truly appreciate your support and look forward to working with you as a valued member of our community.
+
+Membership Level: ${data.membershipLevel}
+Status: Active
+
+You can now log in to your account at ${siteUrl}/login to access your member benefits, update your profile, and connect with the WON Foundation community.
+
+Here's to a WONderful year!
+
+Organization Contact Information:
+Name: Women Officials Network Foundation
+Address: 6725 Daly Road, Ste. 252572, West Bloomfield, MI 48325
+Contact Email: ${ADMIN_EMAIL}
+
+Follow us:
+Facebook: https://www.facebook.com/womenofficialsmi
+Instagram: https://www.instagram.com/thewonfoundation/#
+
+Thanks again for supporting Women Officials Network Foundation!
+
+Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All rights reserved.
+  `.trim()
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.email,
+      subject: 'Your WON Foundation Membership is Now Active',
+      html: htmlContent,
+      text: textContent,
+    })
+    console.log('[emails] member activation email sent to', data.email)
+  } catch (error) {
+    console.error('[emails] failed to send member activation email:', error)
   }
 }
 

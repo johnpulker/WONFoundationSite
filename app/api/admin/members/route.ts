@@ -5,7 +5,7 @@ import {
   logAdminAction,
   getClientIP 
 } from '@/lib/adminSessionServer'
-import { sendMembershipConfirmationEmail, sendAdminMembershipNotificationEmail } from '@/lib/emails'
+import { sendMembershipConfirmationEmail, sendAdminMembershipNotificationEmail, sendMemberActivationEmail } from '@/lib/emails'
 
 /**
  * Calculate membership end date based on registration date
@@ -449,6 +449,39 @@ export async function PUT(request: NextRequest) {
           console.error('Error updating membership expiration:', updateError)
           return NextResponse.json({ error: `Failed to update membership expiration: ${updateError.message}` }, { status: 500 })
         }
+      }
+    }
+
+    // Send activation email if status just changed to active from pending
+    if (
+      updateData.membership_status === 'active'
+    ) {
+      try {
+        const { data: memberUser } = await supabase
+          .from('users')
+          .select('email, first_name, last_name')
+          .eq('id', id)
+          .single()
+
+        const { data: activeMembership } = await supabase
+          .from('memberships')
+          .select('level, status')
+          .eq('user_id', id)
+          .eq('status', 'active')
+          .order('end_date', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (memberUser?.email && activeMembership?.level) {
+          sendMemberActivationEmail({
+            email: memberUser.email,
+            firstName: memberUser.first_name || '',
+            lastName: memberUser.last_name || '',
+            membershipLevel: activeMembership.level,
+          }).catch((err) => console.error('[activation email] failed:', err))
+        }
+      } catch (err) {
+        console.error('[activation email] error fetching member data:', err)
       }
     }
 
