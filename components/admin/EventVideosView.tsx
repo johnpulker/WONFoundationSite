@@ -383,7 +383,7 @@ export default function EventVideosView() {
             </svg>
           </div>
           <p className="text-neutral-600 font-medium">No videos yet</p>
-          <p className="text-neutral-400 text-sm mt-1">Click &quot;Add Video&quot; to add your first event video.</p>
+          <p className="text-neutral-400 text-sm mt-1">Click {'"'}Add Video{'"'} to add your first event video.</p>
         </div>
       ) : (
         <div className="space-y-8">
