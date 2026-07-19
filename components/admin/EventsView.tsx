@@ -18,6 +18,7 @@ interface Event {
   is_active: boolean;
   image_url: string | null;
   notes: string | null;
+  event_type: string | null;
   created_at: string;
   registration_count?: number;
   total_tickets?: number;
@@ -46,6 +47,7 @@ export default function EventsView() {
     image_url: "",
     use_external_registration: false,
     external_registration_url: "",
+    event_type: "in_person",
   });
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -107,16 +109,17 @@ export default function EventsView() {
         slug: generateSlug(formData.name, formData.date),
         description: formData.description || null,
         date: dateTime,
-        venue_name: formData.venue_name || null,
-        venue_address: formData.venue_address || null,
-        city: formData.city || null,
-        state: formData.state || null,
-        postal_code: formData.postal_code || null,
-        country: formData.country || null,
+        venue_name: formData.event_type === 'virtual' ? null : (formData.venue_name || null),
+        venue_address: formData.event_type === 'virtual' ? null : (formData.venue_address || null),
+        city: formData.event_type === 'virtual' ? null : (formData.city || null),
+        state: formData.event_type === 'virtual' ? null : (formData.state || null),
+        postal_code: formData.event_type === 'virtual' ? null : (formData.postal_code || null),
+        country: formData.event_type === 'virtual' ? null : (formData.country || null),
         price_cents: formData.price_cents,
         is_active: formData.is_active,
         image_url: formData.image_url || null,
         notes: formData.notes || null,
+        event_type: formData.event_type || 'in_person',
         use_external_registration: false,
         external_registration_url: null,
       };
@@ -155,6 +158,7 @@ export default function EventsView() {
         image_url: "",
         use_external_registration: false,
         external_registration_url: "",
+        event_type: "in_person",
       });
       fetchEvents();
     } catch (err: any) {
@@ -185,6 +189,7 @@ export default function EventsView() {
       image_url: event.image_url || "",
       use_external_registration: false,
       external_registration_url: "",
+      event_type: event.event_type || "in_person",
     });
     setShowForm(true);
   };
@@ -329,6 +334,7 @@ export default function EventsView() {
               image_url: "",
               use_external_registration: false,
               external_registration_url: "",
+              event_type: "in_person",
             });
             setShowForm(true);
           }}
@@ -364,6 +370,21 @@ export default function EventsView() {
                   className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
                   placeholder="e.g., Leadership Development Workshop"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Event Type *
+                </label>
+                <select
+                  required
+                  value={formData.event_type}
+                  onChange={(e) => setFormData({ ...formData, event_type: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                >
+                  <option value="in_person">In Person</option>
+                  <option value="virtual">Virtual</option>
+                </select>
               </div>
 
               <div>
@@ -422,89 +443,92 @@ export default function EventsView() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                  Venue Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.venue_name}
-                  onChange={(e) => setFormData({ ...formData, venue_name: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
-                  placeholder="e.g., Lawrence Technology University"
-                />
-              </div>
+              {formData.event_type !== 'virtual' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Venue Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.venue_name}
+                      onChange={(e) => setFormData({ ...formData, venue_name: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                      placeholder="e.g., Lawrence Technology University"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                  Street Address *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.venue_address}
-                  onChange={(e) => setFormData({ ...formData, venue_address: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
-                  placeholder="e.g., 123 Main Street"
-                />
-                <p className="text-xs text-neutral-500 mt-1">
-                  This address will be used for Google Maps integration
-                </p>
-              </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Street Address
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.venue_address}
+                      onChange={(e) => setFormData({ ...formData, venue_address: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                      placeholder="e.g., 123 Main Street"
+                    />
+                    <p className="text-xs text-neutral-500 mt-1">
+                      This address will be used for Google Maps integration
+                    </p>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
-                    placeholder="e.g., Southfield"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    State
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
-                    placeholder="e.g., MI"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                        placeholder="e.g., Southfield"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        State
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.state}
+                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                        placeholder="e.g., MI"
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Postal Code
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.postal_code}
-                    onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
-                    placeholder="e.g., 48201"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Country
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
-                    placeholder="e.g., United States"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Postal Code
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.postal_code}
+                        onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                        placeholder="e.g., 48201"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Country
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.country}
+                        onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                        placeholder="e.g., United States"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-neutral-700 mb-2">

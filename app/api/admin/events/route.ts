@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
         is_active: body.is_active ?? true,
         image_url: body.image_url || null,
         notes: body.notes || null,
+        event_type: body.event_type || 'in_person',
         use_external_registration: body.use_external_registration ?? false,
         external_registration_url: body.use_external_registration ? (body.external_registration_url || null) : null,
       })
@@ -136,6 +137,7 @@ export async function PUT(request: NextRequest) {
         is_active: body.is_active ?? true,
         image_url: body.image_url || null,
         notes: body.notes || null,
+        event_type: body.event_type || 'in_person',
         use_external_registration: body.use_external_registration ?? false,
         external_registration_url: body.use_external_registration ? (body.external_registration_url || null) : null,
       })

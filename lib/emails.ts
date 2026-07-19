@@ -17,6 +17,7 @@ interface Event {
   state?: string | null
   postal_code?: string | null
   notes?: string | null
+  event_type?: string | null
 }
 
 interface Registration {
@@ -74,7 +75,9 @@ export async function sendUserConfirmationEmail(
     timeZone: 'America/New_York',
   })
 
-  const venueLines = [
+  const isVirtual = event.event_type === 'virtual'
+
+  const venueLines = isVirtual ? [] : [
     event.venue_name,
     event.venue_address,
     [event.city, event.state, event.postal_code].filter(Boolean).join(', '),

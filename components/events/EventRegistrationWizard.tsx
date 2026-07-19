@@ -23,6 +23,7 @@ interface Event {
   currency: string
   max_per_order: number
   is_active: boolean
+  event_type?: string | null
 }
 
 interface FormData {
@@ -299,33 +300,37 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
                 <div className="text-xs text-neutral-500">Ends {dateInfo.endTime}</div>
               </div>
             </Card>
-            <Card>
-              <div className="space-y-1">
-                <div className="font-semibold text-neutral-900">{event.venue_name}</div>
-                <div className="text-sm text-neutral-700">{event.venue_address}</div>
-              </div>
-            </Card>
-            <Card>
-              <div className="text-center">
-                <div className="mb-2">
-                  <svg className="w-12 h-12 mx-auto text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <a
-                  href={getGoogleMapsLink()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline inline-flex items-center"
-                >
-                  View on Google Maps
-                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              </div>
-            </Card>
+            {event.event_type !== 'virtual' && (
+              <>
+                <Card>
+                  <div className="space-y-1">
+                    <div className="font-semibold text-neutral-900">{event.venue_name}</div>
+                    <div className="text-sm text-neutral-700">{event.venue_address}</div>
+                  </div>
+                </Card>
+                <Card>
+                  <div className="text-center">
+                    <div className="mb-2">
+                      <svg className="w-12 h-12 mx-auto text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </div>
+                    <a
+                      href={getGoogleMapsLink()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline inline-flex items-center"
+                    >
+                      View on Google Maps
+                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  </div>
+                </Card>
+              </>
+            )}
           </div>
 
           {/* Ticket Selection Card */}
