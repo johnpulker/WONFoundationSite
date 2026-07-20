@@ -737,7 +737,7 @@ export default function EventsView() {
                         </div>
                       </td>
                       <td className="py-4 px-6 text-neutral-600">
-                        {event.venue_name || event.city || "TBD"}
+                        {event.event_type === 'virtual' ? 'Virtual - Zoom' : (event.venue_name || event.city || 'TBD')}
                       </td>
                       <td className="py-4 px-6">
                         <span className={`font-semibold ${event.price_cents > 0 ? "text-[#E7C418]" : "text-green-600"}`}>

@@ -45,7 +45,7 @@ export default function UpcomingEvents() {
               slug: e.slug,
               title: e.name,
               date: e.date,
-              location: e.venue_name || e.city || 'TBD',
+              location: e.event_type === 'virtual' ? 'Virtual - Zoom' : (e.venue_name || e.city || 'TBD'),
               description: e.description || '',
               category: e.price_cents > 0 ? 'Paid Event' : 'Free Event',
               featured: index === 0, // First event is featured
