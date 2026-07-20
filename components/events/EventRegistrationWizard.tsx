@@ -24,6 +24,7 @@ interface Event {
   max_per_order: number
   is_active: boolean
   event_type?: string | null
+  duration_minutes?: number | null
 }
 
 interface FormData {
@@ -103,7 +104,7 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
       date: date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
       weekday: date.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase(),
       time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }),
-      endTime: new Date(date.getTime() + 2 * 60 * 60 * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }),
+      endTime: new Date(date.getTime() + (event.duration_minutes || 120) * 60 * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }),
     }
   }
 

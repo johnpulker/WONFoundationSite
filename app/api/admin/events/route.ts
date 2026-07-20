@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
         image_url: body.image_url || null,
         notes: body.notes || null,
         event_type: body.event_type || 'in_person',
+        duration_minutes: body.duration_minutes || 120,
         use_external_registration: body.use_external_registration ?? false,
         external_registration_url: body.use_external_registration ? (body.external_registration_url || null) : null,
       })
@@ -138,6 +139,7 @@ export async function PUT(request: NextRequest) {
         image_url: body.image_url || null,
         notes: body.notes || null,
         event_type: body.event_type || 'in_person',
+        duration_minutes: body.duration_minutes || 120,
         use_external_registration: body.use_external_registration ?? false,
         external_registration_url: body.use_external_registration ? (body.external_registration_url || null) : null,
       })

@@ -19,6 +19,7 @@ interface Event {
   image_url: string | null;
   notes: string | null;
   event_type: string | null;
+  duration_minutes: number | null;
   created_at: string;
   registration_count?: number;
   total_tickets?: number;
@@ -48,6 +49,7 @@ export default function EventsView() {
     use_external_registration: false,
     external_registration_url: "",
     event_type: "in_person",
+    duration_minutes: 120,
   });
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -120,6 +122,7 @@ export default function EventsView() {
         image_url: formData.image_url || null,
         notes: formData.notes || null,
         event_type: formData.event_type || 'in_person',
+        duration_minutes: formData.duration_minutes || 120,
         use_external_registration: false,
         external_registration_url: null,
       };
@@ -159,6 +162,7 @@ export default function EventsView() {
         use_external_registration: false,
         external_registration_url: "",
         event_type: "in_person",
+        duration_minutes: 120,
       });
       fetchEvents();
     } catch (err: any) {
@@ -190,6 +194,7 @@ export default function EventsView() {
       use_external_registration: false,
       external_registration_url: "",
       event_type: event.event_type || "in_person",
+      duration_minutes: event.duration_minutes || 120,
     });
     setShowForm(true);
   };
@@ -335,6 +340,7 @@ export default function EventsView() {
               use_external_registration: false,
               external_registration_url: "",
               event_type: "in_person",
+              duration_minutes: 120,
             });
             setShowForm(true);
           }}
@@ -416,7 +422,7 @@ export default function EventsView() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-neutral-700 mb-2">
                     Date *
@@ -440,6 +446,30 @@ export default function EventsView() {
                     onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Duration *
+                  </label>
+                  <select
+                    required
+                    value={formData.duration_minutes}
+                    onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                  >
+                    <option value={30}>30 minutes</option>
+                    <option value={60}>1 hour</option>
+                    <option value={90}>1 hour 30 min</option>
+                    <option value={120}>2 hours</option>
+                    <option value={150}>2 hours 30 min</option>
+                    <option value={180}>3 hours</option>
+                    <option value={210}>3 hours 30 min</option>
+                    <option value={240}>4 hours</option>
+                    <option value={270}>4 hours 30 min</option>
+                    <option value={300}>5 hours</option>
+                    <option value={330}>5 hours 30 min</option>
+                    <option value={360}>6 hours</option>
+                  </select>
                 </div>
               </div>
 
