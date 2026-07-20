@@ -48,7 +48,8 @@ export default function PayPalButton({
         clientId: paypalClientId,
         currency: "USD",
         intent: "capture",
-        enableFunding: "card,venmo,paylater",
+        enableFunding: "card,paylater",
+        disableFunding: "venmo",
       }}
       key={paypalClientId} // Force re-render if Client ID changes - helps with cache issues
     >

@@ -874,7 +874,8 @@ export default function JoinRenewFlow() {
                   options={{
                     clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "",
                     currency: "USD",
-                    enableFunding: "card,venmo,paylater",
+                    enableFunding: "card,paylater",
+                    disableFunding: "venmo",
                   }}
                   key={process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID} // Force re-render if Client ID changes
                 >

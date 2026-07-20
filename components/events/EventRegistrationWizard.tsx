@@ -680,7 +680,8 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
                   options={{
                     clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
                     currency: event.currency,
-                    enableFunding: "card,venmo,paylater",
+                    enableFunding: "card,paylater",
+                    disableFunding: "venmo",
                   }}
                   key={process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID} // Force re-render if Client ID changes
                 >
