@@ -126,8 +126,8 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
     if (formData.tickets < 1) {
       newErrors.tickets = 'Please select a ticket.'
     }
-    if (formData.tickets > 1) {
-      newErrors.tickets = 'Maximum 1 ticket per registration.'
+    if (formData.tickets > 10) {
+      newErrors.tickets = 'Maximum 10 tickets per registration.'
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -350,23 +350,23 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
                 <input
                   type="number"
                   min="0"
-                  max="1"
+                  max="10"
                   value={formData.tickets}
                   onChange={(e) => {
                     const val = parseInt(e.target.value) || 0
-                    setFormData({ ...formData, tickets: Math.min(1, Math.max(0, val)) })
+                    setFormData({ ...formData, tickets: Math.min(10, Math.max(0, val)) })
                   }}
                   className="w-20 text-center text-lg font-semibold border-2 border-neutral-300 rounded-lg py-2"
                 />
                 <button
-                  onClick={() => setFormData({ ...formData, tickets: Math.min(1, formData.tickets + 1) })}
+                  onClick={() => setFormData({ ...formData, tickets: Math.min(10, formData.tickets + 1) })}
                   className="w-10 h-10 rounded-full border-2 border-neutral-300 flex items-center justify-center hover:border-neutral-400 transition-colors"
-                  disabled={formData.tickets >= 1}
+                  disabled={formData.tickets >= 10}
                 >
                   <span className="text-neutral-600">+</span>
                 </button>
               </div>
-              <div className="text-sm text-neutral-600">Maximum 1 ticket per registration</div>
+              <div className="text-sm text-neutral-600">Maximum 10 tickets per registration</div>
               {errors.tickets && <div className="text-sm text-red-600">{errors.tickets}</div>}
             </div>
             <div className="mt-6 flex justify-end">
