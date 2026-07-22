@@ -49,10 +49,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Enforce maximum 1 ticket per registration
-    if (body.tickets > 1) {
+    // Enforce maximum 10 tickets per registration
+    if (body.tickets > 10) {
       return NextResponse.json(
-        { error: 'Maximum 1 ticket per registration' },
+        { error: 'Maximum 10 tickets per registration' },
         { status: 400 }
       )
     }
