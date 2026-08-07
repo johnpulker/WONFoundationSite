@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
         provider,
         provider_tx_id,
         membership_level,
+        payer_name,
+        payer_email,
         user_id,
         users:user_id (
           email,

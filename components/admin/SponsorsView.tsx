@@ -10,6 +10,8 @@ interface Sponsor {
   provider: string;
   provider_tx_id: string | null;
   membership_level: string | null;
+  payer_name: string | null;
+  payer_email: string | null;
   user_id: string | null;
   users: {
     email: string;
@@ -29,15 +31,18 @@ const TIER_COLORS: Record<string, string> = {
 const TIER_ORDER = ["SHERO", "HERSTORY", "LEADING LADY", "GIRL POWER"];
 
 function getSponsorName(s: Sponsor): string {
+  // Prefer logged-in user's name, fall back to PayPal payer info
   if (s.users?.full_name) return s.users.full_name;
   const first = s.users?.first_name || "";
   const last = s.users?.last_name || "";
   if (first || last) return `${first} ${last}`.trim();
+  if (s.payer_name) return s.payer_name;
   return "—";
 }
 
 function getSponsorEmail(s: Sponsor): string {
-  return s.users?.email || "—";
+  // Prefer logged-in user's email, fall back to PayPal payer email
+  return s.users?.email || s.payer_email || "—";
 }
 
 function formatAmount(amount: number): string {
