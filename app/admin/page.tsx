@@ -11,6 +11,7 @@ import PaymentsView from "@/components/admin/PaymentsView";
 import BoardMembersView from "@/components/admin/BoardMembersView";
 import GalleryPhotosView from "@/components/admin/GalleryPhotosView";
 import EventVideosView from "@/components/admin/EventVideosView";
+import SponsorsView from "@/components/admin/SponsorsView";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 // Removed client-side session management - now using server-side HttpOnly cookies
@@ -19,6 +20,7 @@ const views = [
   { id: "dashboard", label: "Dashboard" },
   { id: "members", label: "Members" },
   { id: "events", label: "Events" },
+  { id: "sponsors", label: "Sponsors" },
   { id: "honorees", label: "Honorees" },
   { id: "board", label: "Board of Directors" },
   { id: "gallery", label: "Gallery Photos" },
@@ -204,6 +206,7 @@ export default function AdminPage() {
         {activeView === "board" && <BoardMembersView />}
         {activeView === "gallery" && <GalleryPhotosView />}
         {activeView === "event-videos" && <EventVideosView />}
+        {activeView === "sponsors" && <SponsorsView />}
         {activeView === "payments" && <PaymentsView />}
       </main>
     </div>
