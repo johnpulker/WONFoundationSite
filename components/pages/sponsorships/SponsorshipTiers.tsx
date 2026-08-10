@@ -117,6 +117,24 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
       console.error("Sponsorship payment record error:", dbError);
     }
 
+    // Send confirmation email to sponsor + admin notification (fire and forget)
+    if (payerEmail) {
+      fetch("/api/sponsorships/send-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payerName,
+          payerEmail,
+          tierName: tier.name,
+          amount: tier.amount,
+          transactionId: details.id,
+          transactionDate: new Date().toISOString(),
+        }),
+      }).catch((err) =>
+        console.error("Failed to send sponsorship confirmation email:", err)
+      );
+    }
+
     setSuccess(true);
   };
 

@@ -1448,3 +1448,354 @@ Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All
   }
 }
 
+// ---------------------------------------------------------------------------
+// Sponsorship emails
+// ---------------------------------------------------------------------------
+
+interface SponsorshipEmailData {
+  payerName: string
+  payerEmail: string
+  tierName: string       // e.g. "SHERO"
+  amount: number         // dollars, e.g. 25000
+  transactionId: string
+  transactionDate: string // ISO string
+}
+
+const TIER_BENEFITS: Record<string, string[]> = {
+  SHERO: [
+    'Company name on event signage',
+    'Logo on all video screens',
+    'Company name on all video screens',
+    'Prominent event seating at 3 tables — tickets for 30 guests',
+    'Company name on 3 tables',
+    'Featured on WON Foundation website',
+    'Logo on photo booth backdrop',
+    '4 WON Foundation annual memberships',
+  ],
+  HERSTORY: [
+    'Company name on event signage',
+    'Logo on all video screens',
+    'Company name on all video screens',
+    'Prominent event seating at 2 tables — tickets for 20 guests',
+    'Company name on 2 tables',
+    '3 WON Foundation memberships',
+  ],
+  'LEADING LADY': [
+    'Company name on event signage',
+    'Logo on all video screens',
+    'Company name on all video screens',
+    'Prominent event seating at 1 table — tickets for 10 guests',
+    'Company name at 1 table',
+    '2 WON Foundation annual memberships',
+  ],
+  'GIRL POWER': [
+    'Company name on event signage',
+    'Tickets for 5 guests',
+    'Company name on half table',
+    '1 WON Foundation annual membership',
+  ],
+}
+
+/**
+ * Send a sponsorship purchase receipt to the sponsor.
+ */
+export async function sendSponsorshipConfirmationEmail(
+  data: SponsorshipEmailData
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[emails] RESEND_API_KEY not set, skipping sponsorship confirmation')
+    return
+  }
+
+  const benefits = TIER_BENEFITS[data.tierName] || []
+  const txDate = new Date(data.transactionDate)
+  const formattedDate = txDate.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  })
+  const formattedTime = txDate.toLocaleTimeString('en-US', {
+    hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
+  })
+  const amountFormatted = new Intl.NumberFormat('en-US', {
+    style: 'currency', currency: 'USD', minimumFractionDigits: 0,
+  }).format(data.amount)
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; line-height: 1.6; color: #374151;">
+    <div style="max-width: 700px; margin: 0 auto; padding: 20px;">
+
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #871c1c 0%, #5a1a6e 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+        <h1 style="color: #E7C418; margin: 0 0 6px 0; font-size: 26px; font-weight: bold;">
+          Women Officials Network Foundation
+        </h1>
+        <p style="color: rgba(255,255,255,0.85); margin: 0; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;">
+          WONder Woman Awards 2026 — 40th Anniversary
+        </p>
+      </div>
+
+      <!-- Main Content -->
+      <div style="background: white; padding: 40px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+
+        <p style="font-size: 16px; margin: 0 0 20px 0;">Dear ${data.payerName},</p>
+
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          Thank you so much for your generous <strong>${data.tierName}</strong> sponsorship of the
+          <strong>WONder Woman Awards 2026 — 40th Anniversary Celebration</strong>!
+          Your support means the world to us and directly funds leadership development and training
+          programs for women across our communities.
+        </p>
+
+        <p style="font-size: 16px; margin: 0 0 30px 0;">
+          A member of our team will be in touch shortly with next steps and sponsorship details.
+          In the meantime, if you have any questions please reach out to us at
+          <a href="mailto:${ADMIN_EMAIL}" style="color: #871c1c;">${ADMIN_EMAIL}</a>.
+        </p>
+
+        <!-- Tier badge -->
+        <div style="background: linear-gradient(135deg, #871c1c, #5a1a6e); border-radius: 8px; padding: 20px 24px; margin-bottom: 30px; text-align: center;">
+          <p style="color: rgba(255,255,255,0.7); font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; margin: 0 0 4px 0;">Sponsorship Level</p>
+          <p style="color: #E7C418; font-size: 28px; font-weight: bold; margin: 0 0 4px 0;">${data.tierName}</p>
+          <p style="color: white; font-size: 20px; font-weight: bold; margin: 0;">${amountFormatted}</p>
+        </div>
+
+        <!-- What's included -->
+        ${benefits.length > 0 ? `
+        <div style="background: #f9fafb; border-radius: 8px; padding: 20px 24px; margin-bottom: 30px;">
+          <p style="font-size: 14px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 12px 0;">What's Included</p>
+          <ul style="margin: 0; padding-left: 20px;">
+            ${benefits.map(b => `<li style="margin-bottom: 8px; color: #374151;">${b}</li>`).join('')}
+          </ul>
+        </div>
+        ` : ''}
+
+        <!-- Receipt -->
+        <div style="border-top: 2px solid #871c1c; padding-top: 30px; margin-top: 10px;">
+          <p style="font-size: 17px; font-weight: bold; color: #871c1c; margin: 0 0 20px 0;">
+            THIS IS YOUR TRANSACTION RECEIPT. Please save this for your records.
+          </p>
+
+          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+            <h2 style="font-size: 16px; font-weight: bold; margin: 0 0 12px 0; color: #1f2937;">Order Details</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Transaction ID:</td>
+                <td style="padding: 7px 0; font-weight: bold;">${data.transactionId}</td>
+              </tr>
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Date / Time:</td>
+                <td style="padding: 7px 0; font-weight: bold;">${formattedDate} ${formattedTime}</td>
+              </tr>
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Sponsorship Level:</td>
+                <td style="padding: 7px 0; font-weight: bold;">${data.tierName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Amount:</td>
+                <td style="padding: 7px 0; font-weight: bold;">${amountFormatted}</td>
+              </tr>
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Payment Method:</td>
+                <td style="padding: 7px 0; font-weight: bold;">PayPal</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; font-weight: bold; margin: 0 0 12px 0; color: #1f2937;">Your Details</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Name:</td>
+                <td style="padding: 7px 0; font-weight: bold;">${data.payerName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Email:</td>
+                <td style="padding: 7px 0; font-weight: bold;">${data.payerEmail}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; font-weight: bold; margin: 0 0 12px 0; color: #1f2937;">Organization Contact</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Name:</td>
+                <td style="padding: 7px 0; font-weight: bold;">Women Officials Network Foundation</td>
+              </tr>
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Address:</td>
+                <td style="padding: 7px 0; font-weight: bold;">6725 Daly Road, Ste. 252572, West Bloomfield, MI 48325</td>
+              </tr>
+              <tr>
+                <td style="padding: 7px 0; color: #6b7280;">Email:</td>
+                <td style="padding: 7px 0; font-weight: bold;"><a href="mailto:${ADMIN_EMAIL}" style="color: #871c1c;">${ADMIN_EMAIL}</a></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <p style="font-size: 16px; text-align: center; color: #871c1c; font-weight: bold; margin: 30px 0 0 0;">
+          Thank you for your incredible support of the Women Officials Network Foundation!
+        </p>
+
+        <div style="border-top: 1px solid #e5e7eb; margin-top: 30px; padding-top: 16px; text-align: center; color: #9ca3af; font-size: 12px;">
+          <p style="margin: 0;">Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>`.trim()
+
+  const textContent = `
+Dear ${data.payerName},
+
+Thank you for your ${data.tierName} sponsorship (${amountFormatted}) of the WONder Woman Awards 2026!
+
+A member of our team will be in touch shortly. For questions: ${ADMIN_EMAIL}
+
+TRANSACTION RECEIPT
+-------------------
+Transaction ID: ${data.transactionId}
+Date/Time: ${formattedDate} ${formattedTime}
+Sponsorship Level: ${data.tierName}
+Amount: ${amountFormatted}
+Payment Method: PayPal
+
+Your Details:
+Name: ${data.payerName}
+Email: ${data.payerEmail}
+
+Organization:
+Women Officials Network Foundation
+6725 Daly Road, Ste. 252572, West Bloomfield, MI 48325
+${ADMIN_EMAIL}
+
+Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All rights reserved.
+`.trim()
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.payerEmail,
+      subject: `Sponsorship Confirmation — ${data.tierName} Level — WONder Woman Awards 2026`,
+      html: htmlContent,
+      text: textContent,
+    })
+    if (result.error) {
+      console.error('[emails] Resend error sending sponsorship confirmation:', result.error)
+      return
+    }
+    console.log('[emails] Sponsorship confirmation sent to', data.payerEmail, result.data?.id)
+  } catch (error) {
+    console.error('[emails] Failed to send sponsorship confirmation:', error)
+  }
+}
+
+/**
+ * Notify the WON admin team when a new sponsorship is purchased.
+ */
+export async function sendAdminSponsorshipNotificationEmail(
+  data: SponsorshipEmailData
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[emails] RESEND_API_KEY not set, skipping admin sponsorship notification')
+    return
+  }
+
+  const amountFormatted = new Intl.NumberFormat('en-US', {
+    style: 'currency', currency: 'USD', minimumFractionDigits: 0,
+  }).format(data.amount)
+
+  const txDate = new Date(data.transactionDate)
+  const formattedDate = txDate.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  })
+  const formattedTime = txDate.toLocaleTimeString('en-US', {
+    hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
+  })
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+  <head><meta charset="utf-8"></head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; padding: 0; background: #f9fafb; color: #374151;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #871c1c, #5a1a6e); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
+        <h1 style="color: #E7C418; margin: 0; font-size: 22px;">🏆 New Sponsorship Purchase</h1>
+      </div>
+      <div style="background: white; padding: 32px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <p style="font-size: 16px; margin: 0 0 20px 0;">A new sponsorship has been purchased through the WON Foundation website.</p>
+
+        <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; width: 40%;">Sponsor Name:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${data.payerName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Sponsor Email:</td>
+              <td style="padding: 8px 0; font-weight: bold;"><a href="mailto:${data.payerEmail}" style="color: #871c1c;">${data.payerEmail}</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Sponsorship Level:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${data.tierName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Amount:</td>
+              <td style="padding: 8px 0; font-weight: bold; color: #871c1c; font-size: 18px;">${amountFormatted}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Transaction ID:</td>
+              <td style="padding: 8px 0; font-family: monospace; font-size: 13px;">${data.transactionId}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Date / Time:</td>
+              <td style="padding: 8px 0;">${formattedDate} ${formattedTime}</td>
+            </tr>
+          </table>
+        </div>
+
+        <p style="font-size: 14px; color: #6b7280; margin: 0;">
+          View all sponsors in the <a href="${SITE_URL}/admin" style="color: #871c1c;">admin dashboard → Sponsors tab</a>.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>`.trim()
+
+  const textContent = `
+New Sponsorship Purchase — WON Foundation
+
+Sponsor: ${data.payerName}
+Email: ${data.payerEmail}
+Level: ${data.tierName}
+Amount: ${amountFormatted}
+Transaction ID: ${data.transactionId}
+Date: ${formattedDate} ${formattedTime}
+
+View in admin: ${SITE_URL}/admin
+`.trim()
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `🏆 New ${data.tierName} Sponsorship — ${data.payerName} (${amountFormatted})`,
+      html: htmlContent,
+      text: textContent,
+    })
+    if (result.error) {
+      console.error('[emails] Resend error sending admin sponsorship notification:', result.error)
+      return
+    }
+    console.log('[emails] Admin sponsorship notification sent', result.data?.id)
+  } catch (error) {
+    console.error('[emails] Failed to send admin sponsorship notification:', error)
+  }
+}
+
