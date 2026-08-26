@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import PayPalButton from "@/components/paypal/PayPalButton";
 
 interface Tier {
@@ -92,29 +91,32 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
   const [error, setError] = useState<string | null>(null);
 
   const handleSuccess = async (details: any) => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
     // Extract payer info from PayPal details (available even for guest checkouts)
     const payerFirstName = details?.payer?.name?.given_name || "";
     const payerLastName = details?.payer?.name?.surname || "";
     const payerName = [payerFirstName, payerLastName].filter(Boolean).join(" ") || null;
     const payerEmail = details?.payer?.email_address || null;
 
-    const { error: dbError } = await supabase.from("payments").insert({
-      user_id: user?.id || null,
-      amount: tier.amount,
-      status: "completed",
-      provider: "paypal",
-      provider_tx_id: details.id,
-      type: "sponsorship",
-      membership_level: tier.name,
-      payer_name: payerName,
-      payer_email: payerEmail,
-    });
+    // Record payment via server-side API (bypasses RLS)
+    try {
+      const res = await fetch("/api/sponsorships/record-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: details.id,
+          tierName: tier.name,
+          amount: tier.amount,
+          payerName,
+          payerEmail,
+        }),
+      });
 
-    if (dbError) {
-      console.error("Sponsorship payment record error:", dbError);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error("Sponsorship payment record error:", errBody);
+      }
+    } catch (err) {
+      console.error("Sponsorship payment record error:", err);
     }
 
     // Send confirmation email to sponsor + admin notification (fire and forget)
