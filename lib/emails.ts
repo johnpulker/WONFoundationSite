@@ -28,6 +28,7 @@ interface Registration {
   tickets: number
   payment_status: string
   payment_id?: string | null
+  public_message?: string | null
 }
 
 /**
@@ -243,6 +244,7 @@ Registration Details:
 - Tickets: ${registration.tickets}
 - Email: ${registration.email}${registration.phone ? `\n- Phone: ${registration.phone}` : ''}
 - Registration ID: ${registration.id}
+${registration.public_message ? `\n- Public Message of Support: ${registration.public_message}` : ""}
 - ${paymentInfoText}
 
 ${event.notes ? `Event Notes:\n${event.notes}\n\n` : ''}Here's to a WONderful event!
@@ -365,6 +367,7 @@ Registration Details:
 - Tickets: ${registration.tickets}
 - ${paymentInfo}
 - Registration ID: ${registration.id}
+${registration.public_message ? `\n- Public Message of Support: ${registration.public_message}` : ""}
 
 Please review this registration in your admin panel.
   `.trim()
