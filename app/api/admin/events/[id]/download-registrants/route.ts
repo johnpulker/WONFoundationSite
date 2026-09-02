@@ -46,10 +46,11 @@ export async function GET(
       return `"${str.replace(/"/g, '""')}"`
     }
 
-    // Build CSV rows
-    const headers = ['#', 'First Name', 'Last Name', 'Email', 'Phone', 'Tickets', 'Status', 'Amount', 'Registered Date']
+    // Build CSV rows — one row per attendee (purchaser + guests)
+    const headers = ['#', 'Role', 'First Name', 'Last Name', 'Email', 'Phone', 'Tickets', 'Status', 'Amount', 'Registered Date']
 
-    const dataRows = rows.map((r: any, i: number) => {
+    const dataRows: string[] = []
+    rows.forEach((r: any, i: number) => {
       const fullName = r.full_name || ''
       const spaceIndex = fullName.indexOf(' ')
       const firstName = spaceIndex === -1 ? fullName : fullName.slice(0, spaceIndex)
@@ -70,8 +71,10 @@ export async function GET(
           })
         : ''
 
-      return [
+      // Purchaser row
+      dataRows.push([
         csvCell(i + 1),
+        csvCell('Purchaser'),
         csvCell(firstName),
         csvCell(lastName),
         csvCell(r.email),
@@ -80,7 +83,29 @@ export async function GET(
         csvCell(status),
         csvCell(amount),
         csvCell(registeredAt),
-      ].join(',')
+      ].join(','))
+
+      // Guest rows
+      const guestNames: string[] = Array.isArray(r.guest_names) ? r.guest_names : []
+      guestNames.forEach((guestName: string) => {
+        if (!guestName || !guestName.trim()) return
+        const gSpaceIndex = guestName.indexOf(' ')
+        const gFirstName = gSpaceIndex === -1 ? guestName : guestName.slice(0, gSpaceIndex)
+        const gLastName = gSpaceIndex === -1 ? '' : guestName.slice(gSpaceIndex + 1)
+
+        dataRows.push([
+          csvCell(i + 1),
+          csvCell('Guest'),
+          csvCell(gFirstName),
+          csvCell(gLastName),
+          csvCell(''),
+          csvCell(''),
+          csvCell(''),
+          csvCell(''),
+          csvCell(''),
+          csvCell(registeredAt),
+        ].join(','))
+      })
     })
 
     const csvContent = [
