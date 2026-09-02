@@ -17,6 +17,7 @@ interface RegisterFreeBody {
   registration_type?: string
   is_anonymous?: boolean
   public_message?: string
+  guest_names?: string[]
   marketing_opt_in?: boolean
 }
 
@@ -99,6 +100,7 @@ export async function POST(request: NextRequest) {
         registration_type: body.registration_type || 'individual',
         is_anonymous: body.is_anonymous || false,
         public_message: body.public_message || null,
+        guest_names: body.guest_names && body.guest_names.length > 0 ? body.guest_names : null,
         marketing_opt_in: body.marketing_opt_in || false,
         payment_status: 'free',
         payment_provider: null,

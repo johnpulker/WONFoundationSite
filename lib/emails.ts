@@ -29,6 +29,7 @@ interface Registration {
   payment_status: string
   payment_id?: string | null
   public_message?: string | null
+  guest_names?: string[] | null
 }
 
 /**
@@ -368,6 +369,7 @@ Registration Details:
 - ${paymentInfo}
 - Registration ID: ${registration.id}
 ${registration.public_message ? `\n- Public Message of Support: ${registration.public_message}` : ""}
+${registration.guest_names && registration.guest_names.length > 0 ? `\n- Guest Names:\n${registration.guest_names.map((name: string, i: number) => `  ${i + 1}. ${name}`).join("\n")}` : ""}
 
 Please review this registration in your admin panel.
   `.trim()

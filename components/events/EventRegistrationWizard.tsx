@@ -45,6 +45,7 @@ interface FormData {
   isAnonymous: boolean
   publicMessage: string
   marketingOptIn: boolean
+  guestNames: string[]
 }
 
 export default function EventRegistrationWizard({ event }: { event: Event }) {
@@ -67,6 +68,7 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
     isAnonymous: false,
     publicMessage: '',
     marketingOptIn: false,
+    guestNames: [],
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -146,20 +148,58 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
     return Object.keys(newErrors).length === 0
   }
 
+  // Dynamic steps: insert "Guest Names" step between Contact Info and Checkout when tickets > 1
+  const hasGuestStep = formData.tickets > 1
+  const guestStep = hasGuestStep ? 3 : -1 // step number for guest names, -1 if skipped
+  const checkoutStep = hasGuestStep ? 4 : 3
+
+  const stepLabels = hasGuestStep
+    ? [
+        { num: 1, label: 'Select Registration' },
+        { num: 2, label: 'Contact Info' },
+        { num: 3, label: 'Guest Names' },
+        { num: 4, label: 'Checkout' },
+      ]
+    : [
+        { num: 1, label: 'Select Registration' },
+        { num: 2, label: 'Contact Info' },
+        { num: 3, label: 'Checkout' },
+      ]
+
+  const totalSteps = stepLabels.length
+
+  // Keep guestNames array in sync with ticket count
+  const syncGuestNames = (ticketCount: number) => {
+    const additionalGuests = Math.max(0, ticketCount - 1)
+    const current = formData.guestNames
+    if (current.length === additionalGuests) return current
+    if (current.length < additionalGuests) {
+      return [...current, ...Array(additionalGuests - current.length).fill('')]
+    }
+    return current.slice(0, additionalGuests)
+  }
+
   const handleNext = () => {
     if (step === 1) {
       if (validateStep1()) {
+        // Sync guest names when moving past ticket selection
+        setFormData((prev) => ({ ...prev, guestNames: syncGuestNames(prev.tickets) }))
         setStep(2)
       }
     } else if (step === 2) {
       if (validateStep2()) {
-        setStep(3)
+        setStep(hasGuestStep ? 3 : checkoutStep)
       }
+    } else if (step === guestStep) {
+      // Guest names are optional, always allow proceeding
+      setStep(checkoutStep)
     }
   }
 
   const handleBack = () => {
-    if (step > 1) {
+    if (step === checkoutStep && hasGuestStep) {
+      setStep(guestStep)
+    } else if (step > 1) {
       setStep(step - 1)
     }
   }
@@ -188,6 +228,7 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
           is_anonymous: formData.isAnonymous,
           public_message: formData.publicMessage || null,
           marketing_opt_in: formData.marketingOptIn,
+          guest_names: formData.guestNames.filter((n) => n.trim()) || null,
         }),
       })
 
@@ -232,11 +273,7 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
       {/* Progress Bar */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center space-x-4 flex-1">
-          {[
-            { num: 1, label: 'Select Registration' },
-            { num: 2, label: 'Contact Info' },
-            { num: 3, label: 'Checkout' },
-          ].map((s) => (
+          {stepLabels.map((s) => (
             <div key={s.num} className="flex items-center flex-1">
               <div className="flex items-center">
                 <div
@@ -264,7 +301,7 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
                   {s.label}
                 </span>
               </div>
-              {s.num < 3 && (
+              {s.num < totalSteps && (
                 <div
                   className={`h-0.5 flex-1 mx-4 ${
                     step > s.num ? 'bg-black' : 'bg-neutral-200'
@@ -614,8 +651,70 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
         </Card>
       )}
 
-      {/* Step 3: Checkout */}
-      {step === 3 && (
+      {/* Guest Names Step (only when tickets > 1) */}
+      {step === guestStep && hasGuestStep && (
+        <Card>
+          <h2 className="text-2xl font-semibold text-neutral-900 mb-2">Guest Names</h2>
+          <p className="text-neutral-600 mb-6">
+            You&apos;re purchasing {formData.tickets} tickets. Please enter the names of the additional guests who will be attending.
+            These fields are optional — you can fill them in later if needed.
+          </p>
+          <div className="space-y-4">
+            {/* Show the registrant as Guest 1 (read-only) */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Guest 1 (You)
+              </label>
+              <input
+                type="text"
+                value={`${formData.firstName} ${formData.lastName}`}
+                disabled
+                className="w-full px-4 py-2 border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-500"
+              />
+            </div>
+            {/* Additional guest fields */}
+            {formData.guestNames.map((name, index) => (
+              <div key={index}>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  Guest {index + 2}
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => {
+                    const updated = [...formData.guestNames]
+                    updated[index] = e.target.value
+                    setFormData({ ...formData, guestNames: updated })
+                  }}
+                  placeholder="Full name"
+                  className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Navigation */}
+          <div className="flex justify-between pt-6 mt-6 border-t border-neutral-200">
+            <button
+              onClick={handleBack}
+              className="text-neutral-700 hover:text-neutral-900 flex items-center"
+              disabled={isSessionExpired}
+            >
+              ← Go Back
+            </button>
+            <Button
+              onClick={handleNext}
+              className="bg-black text-white hover:bg-neutral-800"
+              disabled={isSessionExpired}
+            >
+              Continue
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Checkout Step */}
+      {step === checkoutStep && (
         <Card>
           <h2 className="text-2xl font-semibold text-neutral-900 mb-6">Checkout</h2>
           <div className="space-y-6">
@@ -707,6 +806,7 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
                             is_anonymous: formData.isAnonymous,
                             public_message: formData.publicMessage || null,
                             marketing_opt_in: formData.marketingOptIn,
+                            guest_names: formData.guestNames.filter((n) => n.trim()) || null,
                           }),
                         })
 
