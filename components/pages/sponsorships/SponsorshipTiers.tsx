@@ -89,6 +89,11 @@ const tiers: Tier[] = [
 function TierCard({ tier, index }: { tier: Tier; index: number }) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "check">("paypal");
+  const [submittingCheck, setSubmittingCheck] = useState(false);
+  const [isCheckPayment, setIsCheckPayment] = useState(false);
+  const [checkName, setCheckName] = useState("");
+  const [checkEmail, setCheckEmail] = useState("");
 
   const handleSuccess = async (details: any) => {
     // Extract payer info from PayPal details (available even for guest checkouts)
@@ -145,6 +150,71 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
     setError("Payment could not be completed. Please try again or contact us.");
   };
 
+  const handleCheckSubmit = async () => {
+    if (!checkName.trim() || !checkEmail.trim()) {
+      setError("Please enter your name and email address.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(checkEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    setSubmittingCheck(true);
+    setError(null);
+
+    try {
+      const checkOrderId = `CHECK-SPON-${Date.now()}`;
+
+      // Record pending sponsorship payment via server-side API
+      const res = await fetch("/api/sponsorships/record-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: checkOrderId,
+          tierName: tier.name,
+          amount: tier.amount,
+          payerName: checkName.trim(),
+          payerEmail: checkEmail.trim(),
+          status: "pending",
+          provider: "admin",
+        }),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error("Sponsorship check payment record error:", errBody);
+        throw new Error("We were unable to record your sponsorship pledge. Please try again or contact support.");
+      }
+
+      // Send confirmation email with check payment instructions
+      fetch("/api/sponsorships/send-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payerName: checkName.trim(),
+          payerEmail: checkEmail.trim(),
+          tierName: tier.name,
+          amount: tier.amount,
+          transactionId: checkOrderId,
+          transactionDate: new Date().toISOString(),
+          paymentMethod: "check",
+        }),
+      }).catch((err) =>
+        console.error("Failed to send sponsorship check confirmation email:", err)
+      );
+
+      setIsCheckPayment(true);
+      setSuccess(true);
+    } catch (err: any) {
+      console.error("Error handling check sponsorship payment:", err);
+      setError(err.message || "Failed to record check payment. Please contact support.");
+    } finally {
+      setSubmittingCheck(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }}
@@ -188,7 +258,7 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
         </ul>
       </div>
 
-      {/* PayPal Button Area */}
+      {/* Payment Area */}
       <div className="px-6 pb-6">
         <AnimatePresence mode="wait">
           {success ? (
@@ -199,26 +269,109 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
               className="p-4 bg-green-50 border border-green-200 rounded-xl text-center"
             >
               <p className="text-green-800 font-semibold text-sm">
-                🎉 Thank you for your sponsorship!
+                {isCheckPayment
+                  ? "Thank you for your sponsorship pledge!"
+                  : "🎉 Thank you for your sponsorship!"}
               </p>
               <p className="text-green-700 text-xs mt-1">
-                We&apos;ll be in touch with next steps shortly.
+                {isCheckPayment
+                  ? "Please mail your check within 7 days. We'll be in touch with next steps shortly."
+                  : "We'll be in touch with next steps shortly."}
               </p>
             </motion.div>
           ) : (
-            <motion.div key="paypal">
+            <motion.div key="payment">
               {error && (
                 <p className="text-red-600 text-xs mb-3 text-center">{error}</p>
               )}
               <p className="text-xs text-neutral-500 text-center mb-3 font-medium">
                 {tier.buttonLabel}
               </p>
-              <PayPalButton
-                amount={tier.amount}
-                description={`${tier.name} Sponsorship — WONder Woman Awards 2026`}
-                onSuccess={handleSuccess}
-                onError={handleError}
-              />
+
+              {/* Payment Method Toggle */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => { setPaymentMethod("paypal"); setError(null); }}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${
+                    paymentMethod === "paypal"
+                      ? "bg-gradient-to-r from-[#871c1c] to-[#a02323] text-white shadow-md"
+                      : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                  }`}
+                >
+                  Pay Online
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPaymentMethod("check"); setError(null); }}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${
+                    paymentMethod === "check"
+                      ? "bg-gradient-to-r from-[#871c1c] to-[#a02323] text-white shadow-md"
+                      : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                  }`}
+                >
+                  Mail a Check
+                </button>
+              </div>
+
+              {paymentMethod === "paypal" ? (
+                <PayPalButton
+                  amount={tier.amount}
+                  description={`${tier.name} Sponsorship — WONder Woman Awards 2026`}
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                />
+              ) : (
+                <div className="space-y-3">
+                  {/* Name & Email fields */}
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-1">Your Name</label>
+                    <input
+                      type="text"
+                      value={checkName}
+                      onChange={(e) => setCheckName(e.target.value)}
+                      placeholder="Full name"
+                      className="w-full px-3 py-2 rounded-lg border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#871c1c]/30 focus:border-[#871c1c]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-600 mb-1">Your Email</label>
+                    <input
+                      type="email"
+                      value={checkEmail}
+                      onChange={(e) => setCheckEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      className="w-full px-3 py-2 rounded-lg border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#871c1c]/30 focus:border-[#871c1c]"
+                    />
+                  </div>
+
+                  {/* Mailing instructions */}
+                  <div className="p-3 rounded-xl bg-neutral-50 border border-dashed border-neutral-300 text-sm text-neutral-700 text-left">
+                    <p className="font-semibold mb-1">Mail your check within 7 days to:</p>
+                    <p className="text-xs">
+                      Women Officials Network Foundation<br />
+                      6725 Daly Road, Ste 252572,<br />
+                      West Bloomfield, MI 48325
+                    </p>
+                    <p className="mt-2 text-xs text-neutral-600">
+                      Make payable to <strong>Women Officials Network Foundation</strong>. Please include your name and
+                      note that this is for your <strong>{tier.name}</strong> sponsorship so we can match your check.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleCheckSubmit}
+                    disabled={submittingCheck}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#871c1c] to-[#a02323] text-white font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+                  >
+                    {submittingCheck ? "Recording Sponsorship Pledge..." : "Record Sponsorship to be Paid by Check"}
+                  </button>
+                  <p className="text-xs text-neutral-500 text-center">
+                    We allow 7 days for receipt of checks. Your sponsorship will be fully confirmed after your check is received.
+                  </p>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

@@ -7,7 +7,7 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { payerName, payerEmail, tierName, amount, transactionId, transactionDate } = body
+    const { payerName, payerEmail, tierName, amount, transactionId, transactionDate, paymentMethod } = body
 
     if (!payerEmail || !tierName || !amount || !transactionId) {
       return NextResponse.json(
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       amount: Number(amount),
       transactionId,
       transactionDate: transactionDate || new Date().toISOString(),
+      paymentMethod: paymentMethod || 'paypal',
     }
 
     // Fire both emails in parallel — don't let one block the other

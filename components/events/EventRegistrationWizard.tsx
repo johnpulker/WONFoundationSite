@@ -75,6 +75,9 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
   const [sessionTime, setSessionTime] = useState(20 * 60) // 20 minutes in seconds
   const [isSuccess, setIsSuccess] = useState(false)
   const [paypalError, setPaypalError] = useState<string | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "check">("paypal")
+  const [submittingCheck, setSubmittingCheck] = useState(false)
+  const [isCheckPayment, setIsCheckPayment] = useState(false)
 
   // Session timer
   useEffect(() => {
@@ -259,9 +262,13 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Registration Successful!</h2>
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+            {isCheckPayment ? "Registration Pledge Received!" : "Registration Successful!"}
+          </h2>
           <p className="text-neutral-600">
-            You&apos;ve successfully registered for {event.name}. A confirmation email has been sent to {formData.email}.
+            {isCheckPayment
+              ? `Your registration for ${event.name} has been recorded. Please mail your check within 7 days. A confirmation email with mailing instructions has been sent to ${formData.email}.`
+              : `You've successfully registered for ${event.name}. A confirmation email has been sent to ${formData.email}.`}
           </p>
         </div>
       </Card>
@@ -765,8 +772,8 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
               </div>
             )}
 
-            {/* Paid Event - PayPal */}
-            {isPaid && process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID && (
+            {/* Paid Event */}
+            {isPaid && (
               <div>
                 {isSessionExpired && (
                   <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -774,80 +781,179 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
                     <div className="text-sm">Your registration session has expired. Please refresh the page to start over.</div>
                   </div>
                 )}
-                <div style={{ pointerEvents: isSessionExpired ? 'none' : 'auto', opacity: isSessionExpired ? 0.5 : 1 }}>
-                  <PayPalScriptProvider
-                  options={{
-                    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
-                    currency: event.currency,
-                    enableFunding: "card,paylater",
-                    disableFunding: "venmo",
-                  }}
-                  key={process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID} // Force re-render if Client ID changes
-                >
-                  <PayPalButtons
-                    createOrder={async () => {
-                      try {
-                        const response = await fetch('/api/paypal/create-order', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            eventId: event.id,
-                            full_name: `${formData.firstName} ${formData.lastName}`,
-                            email: formData.email,
-                            phone: formData.phone || null,
-                            address_line1: formData.addressLine1 || null,
-                            address_line2: formData.addressLine2 || null,
-                            city: formData.city || null,
-                            state: formData.state || null,
-                            postal_code: formData.postalCode || null,
-                            country: formData.country || null,
-                            tickets: formData.tickets,
-                            registration_type: formData.registration_type,
-                            is_anonymous: formData.isAnonymous,
-                            public_message: formData.publicMessage || null,
-                            marketing_opt_in: formData.marketingOptIn,
-                            guest_names: formData.guestNames.filter((n) => n.trim()) || null,
-                          }),
-                        })
 
-                        const data = await response.json()
-
-                        if (!response.ok) {
-                          throw new Error(data.error || 'Failed to create order')
-                        }
-
-                        return data.orderID
-                      } catch (error) {
-                        setPaypalError(error instanceof Error ? error.message : 'Failed to create order')
-                        throw error
-                      }
-                    }}
-                    onApprove={async (data) => {
-                      try {
-                        const response = await fetch('/api/paypal/capture-order', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ orderID: data.orderID }),
-                        })
-
-                        const result = await response.json()
-
-                        if (!response.ok) {
-                          throw new Error(result.error || 'Payment failed')
-                        }
-
-                        setIsSuccess(true)
-                      } catch (error) {
-                        setPaypalError(error instanceof Error ? error.message : 'Payment failed')
-                      }
-                    }}
-                    onError={(err) => {
-                      setPaypalError('An error occurred with PayPal. Please try again or contact support if the issue persists.')
-                      console.error('PayPal error:', err)
-                    }}
-                  />
-                </PayPalScriptProvider>
+                {/* Payment Method Toggle */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => { setPaymentMethod("paypal"); setPaypalError(null); }}
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                      paymentMethod === "paypal"
+                        ? "bg-black text-white shadow-md"
+                        : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                    }`}
+                  >
+                    Pay Online
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPaymentMethod("check"); setPaypalError(null); }}
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                      paymentMethod === "check"
+                        ? "bg-black text-white shadow-md"
+                        : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                    }`}
+                  >
+                    Mail a Check
+                  </button>
                 </div>
+
+                {paymentMethod === "paypal" && process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
+                  <div style={{ pointerEvents: isSessionExpired ? 'none' : 'auto', opacity: isSessionExpired ? 0.5 : 1 }}>
+                    <PayPalScriptProvider
+                    options={{
+                      clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
+                      currency: event.currency,
+                      enableFunding: "card,paylater",
+                      disableFunding: "venmo",
+                    }}
+                    key={process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}
+                  >
+                    <PayPalButtons
+                      createOrder={async () => {
+                        try {
+                          const response = await fetch('/api/paypal/create-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              eventId: event.id,
+                              full_name: `${formData.firstName} ${formData.lastName}`,
+                              email: formData.email,
+                              phone: formData.phone || null,
+                              address_line1: formData.addressLine1 || null,
+                              address_line2: formData.addressLine2 || null,
+                              city: formData.city || null,
+                              state: formData.state || null,
+                              postal_code: formData.postalCode || null,
+                              country: formData.country || null,
+                              tickets: formData.tickets,
+                              registration_type: formData.registration_type,
+                              is_anonymous: formData.isAnonymous,
+                              public_message: formData.publicMessage || null,
+                              marketing_opt_in: formData.marketingOptIn,
+                              guest_names: formData.guestNames.filter((n) => n.trim()) || null,
+                            }),
+                          })
+
+                          const data = await response.json()
+
+                          if (!response.ok) {
+                            throw new Error(data.error || 'Failed to create order')
+                          }
+
+                          return data.orderID
+                        } catch (error) {
+                          setPaypalError(error instanceof Error ? error.message : 'Failed to create order')
+                          throw error
+                        }
+                      }}
+                      onApprove={async (data) => {
+                        try {
+                          const response = await fetch('/api/paypal/capture-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ orderID: data.orderID }),
+                          })
+
+                          const result = await response.json()
+
+                          if (!response.ok) {
+                            throw new Error(result.error || 'Payment failed')
+                          }
+
+                          setIsSuccess(true)
+                        } catch (error) {
+                          setPaypalError(error instanceof Error ? error.message : 'Payment failed')
+                        }
+                      }}
+                      onError={(err) => {
+                        setPaypalError('An error occurred with PayPal. Please try again or contact support if the issue persists.')
+                        console.error('PayPal error:', err)
+                      }}
+                    />
+                  </PayPalScriptProvider>
+                  </div>
+                ) : paymentMethod === "check" ? (
+                  <div className="space-y-4" style={{ pointerEvents: isSessionExpired ? 'none' : 'auto', opacity: isSessionExpired ? 0.5 : 1 }}>
+                    {/* Check mailing instructions */}
+                    <div className="p-4 rounded-xl bg-neutral-50 border border-dashed border-neutral-300 text-sm text-neutral-700 text-left">
+                      <p className="font-semibold mb-2">Mail your check within 7 days to:</p>
+                      <p>
+                        Women Officials Network Foundation<br />
+                        6725 Daly Road, Ste 252572,<br />
+                        West Bloomfield, MI 48325
+                      </p>
+                      <p className="mt-3 text-neutral-600">
+                        Make payable to <strong>Women Officials Network Foundation</strong>. Please include your name and
+                        note that this is for your event registration so we can match your check to this purchase.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setSubmittingCheck(true)
+                        setPaypalError(null)
+
+                        try {
+                          const response = await fetch('/api/events/register-check', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              eventId: event.id,
+                              full_name: `${formData.firstName} ${formData.lastName}`,
+                              email: formData.email,
+                              phone: formData.phone || null,
+                              address_line1: formData.addressLine1 || null,
+                              address_line2: formData.addressLine2 || null,
+                              city: formData.city || null,
+                              state: formData.state || null,
+                              postal_code: formData.postalCode || null,
+                              country: formData.country || null,
+                              tickets: formData.tickets,
+                              registration_type: formData.registration_type,
+                              is_anonymous: formData.isAnonymous,
+                              public_message: formData.publicMessage || null,
+                              marketing_opt_in: formData.marketingOptIn,
+                              guest_names: formData.guestNames.filter((n) => n.trim()) || null,
+                            }),
+                          })
+
+                          const data = await response.json()
+
+                          if (!response.ok) {
+                            throw new Error(data.error || 'Failed to record registration')
+                          }
+
+                          setIsCheckPayment(true)
+                          setIsSuccess(true)
+                        } catch (err: any) {
+                          console.error('Error handling check event registration:', err)
+                          setPaypalError(err.message || 'Failed to record check payment. Please contact support.')
+                        } finally {
+                          setSubmittingCheck(false)
+                        }
+                      }}
+                      disabled={submittingCheck || isSessionExpired}
+                      className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-black text-white font-semibold shadow-lg hover:bg-neutral-800 hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {submittingCheck ? 'Recording Registration...' : 'Record Registration to be Paid by Check'}
+                    </button>
+                    <p className="text-xs text-neutral-500 text-center">
+                      We allow 7 days for receipt of checks. Your registration will be fully confirmed after your check is received.
+                    </p>
+                  </div>
+                ) : null}
               </div>
             )}
 

@@ -11,6 +11,8 @@ export async function POST(request: NextRequest) {
       payerName,
       payerEmail,
       userId,
+      status: paymentStatus,
+      provider: paymentProvider,
     } = body
 
     // Validate required fields
@@ -39,8 +41,8 @@ export async function POST(request: NextRequest) {
     const { error: dbError } = await supabase.from('payments').insert({
       user_id: userId || null,
       amount,
-      status: 'completed',
-      provider: 'paypal',
+      status: paymentStatus || 'completed',
+      provider: paymentProvider || 'paypal',
       provider_tx_id: transactionId,
       type: 'sponsorship',
       membership_level: tierName,

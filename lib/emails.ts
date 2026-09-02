@@ -39,7 +39,8 @@ export async function sendUserConfirmationEmail(
   registration: Registration,
   event: Event,
   isPaid: boolean,
-  orderId?: string
+  orderId?: string,
+  paymentMethod?: string
 ): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('RESEND_API_KEY not set, skipping email send')
@@ -88,14 +89,49 @@ export async function sendUserConfirmationEmail(
   const venueInfoText = venueLines.join('\n')
   const venueInfoHtml = venueLines.map(l => `<div>${l}</div>`).join('')
 
+  const isCheckPayment = paymentMethod === 'check'
+
   const paymentInfoText = isPaid && orderId
-    ? `Payment Status: Paid via PayPal\nOrder ID: ${orderId}`
+    ? isCheckPayment
+      ? `Payment Status: Pending (Check/Mail-in)\nReference ID: ${orderId}`
+      : `Payment Status: Paid via PayPal\nOrder ID: ${orderId}`
     : 'This is a free event. No payment required.'
 
   const paymentInfoHtml = isPaid && orderId
-    ? `<tr><td style="padding:8px 0;color:#6b7280;">Payment Status:</td><td style="padding:8px 0;font-weight:bold;">Paid via PayPal</td></tr>
-       <tr><td style="padding:8px 0;color:#6b7280;">Order ID:</td><td style="padding:8px 0;font-weight:bold;">${orderId}</td></tr>`
+    ? isCheckPayment
+      ? `<tr><td style="padding:8px 0;color:#6b7280;">Payment Status:</td><td style="padding:8px 0;font-weight:bold;color:#b45309;">Pending (Check/Mail-in)</td></tr>
+         <tr><td style="padding:8px 0;color:#6b7280;">Reference ID:</td><td style="padding:8px 0;font-weight:bold;">${orderId}</td></tr>`
+      : `<tr><td style="padding:8px 0;color:#6b7280;">Payment Status:</td><td style="padding:8px 0;font-weight:bold;">Paid via PayPal</td></tr>
+         <tr><td style="padding:8px 0;color:#6b7280;">Order ID:</td><td style="padding:8px 0;font-weight:bold;">${orderId}</td></tr>`
     : `<tr><td colspan="2" style="padding:8px 0;color:#6b7280;">This is a free event. No payment required.</td></tr>`
+
+  const checkInstructionsHtml = isCheckPayment ? `
+        <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px 24px; margin: 24px 0;">
+          <h2 style="font-size: 16px; font-weight: bold; margin: 0 0 12px 0; color: #92400e;">Action Required: Mail Your Check</h2>
+          <p style="margin: 0 0 12px 0; color: #78350f; font-size: 14px;">
+            Please mail your check within <strong>7 days</strong> to:
+          </p>
+          <p style="margin: 0 0 12px 0; color: #78350f; font-size: 14px; font-weight: bold;">
+            Women Officials Network Foundation<br/>
+            6725 Daly Road, Ste 252572,<br/>
+            West Bloomfield, MI 48325
+          </p>
+          <p style="margin: 0; color: #78350f; font-size: 14px;">
+            Make payable to <strong>Women Officials Network Foundation</strong>. Please include your name and note that this is for your event registration so we can match your check.
+          </p>
+        </div>` : ''
+
+  const checkInstructionsText = isCheckPayment ? `
+
+ACTION REQUIRED: MAIL YOUR CHECK
+Please mail your check within 7 days to:
+Women Officials Network Foundation
+6725 Daly Road, Ste 252572,
+West Bloomfield, MI 48325
+
+Make payable to Women Officials Network Foundation.
+Please include your name and note that this is for your event registration.
+` : ''
 
   const siteUrl = SITE_URL || 'https://wonfoundation.net'
 
@@ -167,6 +203,8 @@ export async function sendUserConfirmationEmail(
             ${paymentInfoHtml}
           </table>
         </div>
+
+        ${checkInstructionsHtml}
 
         ${event.notes ? `
         <!-- Event Notes -->
@@ -247,7 +285,7 @@ Registration Details:
 - Registration ID: ${registration.id}
 ${registration.public_message ? `\n- Public Message of Support: ${registration.public_message}` : ""}
 - ${paymentInfoText}
-
+${checkInstructionsText}
 ${event.notes ? `Event Notes:\n${event.notes}\n\n` : ''}Here's to a WONderful event!
 
 Organization Contact Information:
@@ -320,7 +358,8 @@ export async function sendOrganizerNotificationEmail(
   registration: Registration,
   event: Event,
   isPaid: boolean,
-  orderId?: string
+  orderId?: string,
+  paymentMethod?: string
 ): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('RESEND_API_KEY not set, skipping email send')
@@ -352,12 +391,16 @@ export async function sendOrganizerNotificationEmail(
     timeZone: 'America/New_York',
   })
 
+  const isCheckPayment = paymentMethod === 'check'
+
   const paymentInfo = isPaid && orderId
-    ? `Payment Status: Paid via PayPal\nOrder ID: ${orderId}`
+    ? isCheckPayment
+      ? `Payment Status: PENDING (Check/Mail-in)\nReference ID: ${orderId}`
+      : `Payment Status: Paid via PayPal\nOrder ID: ${orderId}`
     : 'Payment Status: Free Event'
 
   const emailContent = `
-New Registration Received
+${isCheckPayment ? 'New Registration Pledge (Check)' : 'New Registration Received'}
 
 Event: ${event.name}
 Date: ${formattedDate} at ${formattedTime}
@@ -370,6 +413,7 @@ Registration Details:
 - Registration ID: ${registration.id}
 ${registration.public_message ? `\n- Public Message of Support: ${registration.public_message}` : ""}
 ${registration.guest_names && registration.guest_names.length > 0 ? `\n- Guest Names:\n${registration.guest_names.map((name: string, i: number) => `  ${i + 1}. ${name}`).join("\n")}` : ""}
+${isCheckPayment ? '\nNote: This registrant has chosen to pay by check. They have been instructed to mail a check within 7 days. Please update the payment status once the check is received.' : ''}
 
 Please review this registration in your admin panel.
   `.trim()
@@ -378,7 +422,7 @@ Please review this registration in your admin panel.
     await resend.emails.send({
       from: FROM_EMAIL,
       to: ORGANIZER_EMAIL,
-      subject: `New Registration: ${event.name} - ${registration.full_name}`,
+      subject: `${isCheckPayment ? 'New Registration Pledge (Check)' : 'New Registration'}: ${event.name} - ${registration.full_name}`,
       text: emailContent,
     })
   } catch (error) {
@@ -1464,6 +1508,7 @@ interface SponsorshipEmailData {
   amount: number         // dollars, e.g. 25000
   transactionId: string
   transactionDate: string // ISO string
+  paymentMethod?: string  // "paypal" (default) or "check"
 }
 
 const TIER_BENEFITS: Record<string, string[]> = {
@@ -1606,10 +1651,27 @@ export async function sendSponsorshipConfirmationEmail(
               </tr>
               <tr>
                 <td style="padding: 7px 0; color: #6b7280;">Payment Method:</td>
-                <td style="padding: 7px 0; font-weight: bold;">PayPal</td>
+                <td style="padding: 7px 0; font-weight: bold;">${data.paymentMethod === 'check' ? 'Check (mail-in)' : 'PayPal'}</td>
               </tr>
             </table>
           </div>
+
+          ${data.paymentMethod === 'check' ? `
+          <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px 24px; margin-bottom: 24px;">
+            <h2 style="font-size: 16px; font-weight: bold; margin: 0 0 12px 0; color: #92400e;">Action Required: Mail Your Check</h2>
+            <p style="margin: 0 0 12px 0; color: #78350f; font-size: 14px;">
+              Please mail your check within <strong>7 days</strong> to:
+            </p>
+            <p style="margin: 0 0 12px 0; color: #78350f; font-size: 14px; font-weight: bold;">
+              Women Officials Network Foundation<br/>
+              6725 Daly Road, Ste 252572,<br/>
+              West Bloomfield, MI 48325
+            </p>
+            <p style="margin: 0; color: #78350f; font-size: 14px;">
+              Make payable to <strong>Women Officials Network Foundation</strong>. Please include your name and note that this is for your <strong>${data.tierName}</strong> sponsorship.
+            </p>
+          </div>
+          ` : ''}
 
           <div style="margin-bottom: 24px;">
             <h2 style="font-size: 16px; font-weight: bold; margin: 0 0 12px 0; color: #1f2937;">Your Details</h2>
@@ -1669,8 +1731,17 @@ Transaction ID: ${data.transactionId}
 Date/Time: ${formattedDate} ${formattedTime}
 Sponsorship Level: ${data.tierName}
 Amount: ${amountFormatted}
-Payment Method: PayPal
+Payment Method: ${data.paymentMethod === 'check' ? 'Check (mail-in)' : 'PayPal'}
+${data.paymentMethod === 'check' ? `
+ACTION REQUIRED: MAIL YOUR CHECK
+Please mail your check within 7 days to:
+Women Officials Network Foundation
+6725 Daly Road, Ste 252572,
+West Bloomfield, MI 48325
 
+Make payable to Women Officials Network Foundation.
+Please include your name and note that this is for your ${data.tierName} sponsorship.
+` : ''}
 Your Details:
 Name: ${data.payerName}
 Email: ${data.payerEmail}
@@ -1731,10 +1802,12 @@ export async function sendAdminSponsorshipNotificationEmail(
   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; padding: 0; background: #f9fafb; color: #374151;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #871c1c, #5a1a6e); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-        <h1 style="color: #E7C418; margin: 0; font-size: 22px;">🏆 New Sponsorship Purchase</h1>
+        <h1 style="color: #E7C418; margin: 0; font-size: 22px;">${data.paymentMethod === 'check' ? '🏆 New Sponsorship Pledge (Check)' : '🏆 New Sponsorship Purchase'}</h1>
       </div>
       <div style="background: white; padding: 32px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <p style="font-size: 16px; margin: 0 0 20px 0;">A new sponsorship has been purchased through the WON Foundation website.</p>
+        <p style="font-size: 16px; margin: 0 0 20px 0;">${data.paymentMethod === 'check'
+          ? 'A new sponsorship pledge has been submitted via check/mail-in through the WON Foundation website. The sponsor has been instructed to mail a check within 7 days.'
+          : 'A new sponsorship has been purchased through the WON Foundation website.'}</p>
 
         <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
           <table style="width: 100%; border-collapse: collapse;">
@@ -1753,6 +1826,10 @@ export async function sendAdminSponsorshipNotificationEmail(
             <tr>
               <td style="padding: 8px 0; color: #6b7280;">Amount:</td>
               <td style="padding: 8px 0; font-weight: bold; color: #871c1c; font-size: 18px;">${amountFormatted}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Payment Method:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${data.paymentMethod === 'check' ? 'Check (mail-in) — PENDING' : 'PayPal'}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280;">Transaction ID:</td>
@@ -1774,12 +1851,13 @@ export async function sendAdminSponsorshipNotificationEmail(
 </html>`.trim()
 
   const textContent = `
-New Sponsorship Purchase — WON Foundation
+${data.paymentMethod === 'check' ? 'New Sponsorship Pledge (Check)' : 'New Sponsorship Purchase'} — WON Foundation
 
 Sponsor: ${data.payerName}
 Email: ${data.payerEmail}
 Level: ${data.tierName}
 Amount: ${amountFormatted}
+Payment Method: ${data.paymentMethod === 'check' ? 'Check (mail-in) — PENDING' : 'PayPal'}
 Transaction ID: ${data.transactionId}
 Date: ${formattedDate} ${formattedTime}
 
@@ -1790,7 +1868,7 @@ View in admin: ${SITE_URL}/admin
     const result = await resend.emails.send({
       from: FROM_EMAIL,
       to: ADMIN_EMAIL,
-      subject: `🏆 New ${data.tierName} Sponsorship — ${data.payerName} (${amountFormatted})`,
+      subject: `🏆 ${data.paymentMethod === 'check' ? 'New' : 'New'} ${data.tierName} Sponsorship${data.paymentMethod === 'check' ? ' Pledge (Check)' : ''} — ${data.payerName} (${amountFormatted})`,
       html: htmlContent,
       text: textContent,
     })
