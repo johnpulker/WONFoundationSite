@@ -126,7 +126,7 @@ export default function CurrentYear() {
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+            <div className="flex flex-wrap justify-center gap-4 md:gap-6">
               {honorees.map((honoree, index) => (
                 <motion.div
                   key={honoree.id}
@@ -134,7 +134,7 @@ export default function CurrentYear() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
-                  className="group cursor-pointer"
+                  className="group cursor-pointer w-[calc(50%-0.5rem)] sm:w-[calc(33.333%-0.75rem)] md:w-[calc(25%-1rem)] lg:w-[calc(20%-1.2rem)]"
                   onClick={() => setSelectedHonoree(honoree)}
                 >
                   <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg border border-neutral-100 hover:border-[#E7C418]/30 transition-all duration-300 hover:-translate-y-1">
