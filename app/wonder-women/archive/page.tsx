@@ -13,6 +13,7 @@ interface Honoree {
   bio: string | null;
   photo_url: string | null;
   year: number;
+  honoree_order: number;
 }
 
 export default function ArchivePage() {
