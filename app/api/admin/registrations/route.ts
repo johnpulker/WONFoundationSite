@@ -35,11 +35,11 @@ export async function POST(request: NextRequest) {
 
     // Filter by payment status
     if (body.showPending) {
-      // Show only pending (abandoned) registrations
+      // Show only pending registrations (abandoned PayPal or awaiting check)
       query = query.eq('payment_status', 'pending')
     } else {
-      // Default: Show only completed registrations (free or paid)
-      query = query.in('payment_status', ['free', 'paid'])
+      // Default: Show completed registrations (free or paid) plus pending check payments
+      query = query.or('payment_status.in.(free,paid),and(payment_status.eq.pending,payment_provider.eq.check)')
     }
 
     // Filter by event slug or name if provided
