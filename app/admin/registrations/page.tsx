@@ -14,8 +14,19 @@ interface Registration {
   phone: string | null
   tickets: number
   payment_status: string
+  payment_provider: string | null
   payment_id: string | null
+  guest_names: string[] | null
   created_at: string
+  registration_type: string | null
+  is_anonymous: boolean | null
+  public_message: string | null
+  address_line1: string | null
+  address_line2: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+  marketing_opt_in: boolean | null
   event?: {
     id: string
     slug: string
@@ -34,24 +45,23 @@ function AdminRegistrationsContent() {
   const [eventFilter, setEventFilter] = useState<string>('')
   const [showPending, setShowPending] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null)
   const [editingReg, setEditingReg] = useState<Registration | null>(null)
   const [editName, setEditName] = useState('')
+  const [editGuestNames, setEditGuestNames] = useState<string[]>([])
+  const [editPaymentStatus, setEditPaymentStatus] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const [togglingPaid, setTogglingPaid] = useState(false)
 
   useEffect(() => {
-    // Check if session is valid by making a server-side validation request
-    // Server validates the HttpOnly cookie
     const checkSession = async () => {
       try {
         const response = await fetch("/api/admin/validate-session", {
           method: "GET",
-          credentials: "include", // Include cookies
+          credentials: "include",
         })
 
         if (response.ok) {
           setIsAuthenticated(true)
-          // Fetch registrations immediately
           fetchRegistrations()
         } else {
           setIsAuthenticated(false)
@@ -73,10 +83,8 @@ function AdminRegistrationsContent() {
 
     try {
       const requestBody: any = { showPending }
-      
-      // Determine if filter is slug or name
+
       if (eventFilter && eventFilter.trim() !== '') {
-        // Check if it looks like a slug (lowercase, hyphens, no spaces)
         if (/^[a-z0-9-]+$/.test(eventFilter.trim())) {
           requestBody.eventSlug = eventFilter.trim()
         } else {
@@ -87,13 +95,12 @@ function AdminRegistrationsContent() {
       const response = await fetch('/api/admin/registrations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Include HttpOnly cookie for session validation
+        credentials: 'include',
         body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          // Session expired - redirect to admin login
           setIsAuthenticated(false)
           router.push('/admin')
           return
@@ -101,7 +108,6 @@ function AdminRegistrationsContent() {
         const data = await response.json()
         const errorMessage = data.error || 'Failed to fetch registrations'
         setError(errorMessage)
-        // Don't throw for validation errors, just show the message
         if (response.status === 400 || response.status === 404) {
           return
         }
@@ -121,7 +127,6 @@ function AdminRegistrationsContent() {
   }
 
   useEffect(() => {
-    // Only refetch when eventFilter or showPending changes (user is already authenticated)
     if (isAuthenticated) {
       fetchRegistrations()
     }
@@ -154,18 +159,19 @@ function AdminRegistrationsContent() {
     }
   }
 
-  const handleMarkPaid = async (reg: Registration) => {
-    if (!confirm(`Mark this check payment as received for ${reg.full_name}? A confirmation email will be sent to ${reg.email}.`)) {
+  const handleTogglePaid = async () => {
+    if (!editingReg) return
+    if (!confirm(`Mark this check payment as received for ${editingReg.full_name}? A confirmation email will be sent to ${editingReg.email}.`)) {
       return
     }
 
-    setMarkingPaidId(reg.id)
+    setTogglingPaid(true)
     try {
       const response = await fetch('/api/admin/registrations', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id: reg.id, mark_as_paid: true }),
+        body: JSON.stringify({ id: editingReg.id, mark_as_paid: true }),
       })
 
       if (!response.ok) {
@@ -174,32 +180,48 @@ function AdminRegistrationsContent() {
         return
       }
 
-      // Update the registration in state
+      // Update in state
       setRegistrations((prev) =>
-        prev.map((r) => (r.id === reg.id ? { ...r, payment_status: 'paid' } : r))
+        prev.map((r) => (r.id === editingReg.id ? { ...r, payment_status: 'paid' } : r))
       )
+      setEditPaymentStatus('paid')
+      setEditingReg({ ...editingReg, payment_status: 'paid' })
     } catch (err) {
       alert('Failed to mark as paid')
     } finally {
-      setMarkingPaidId(null)
+      setTogglingPaid(false)
     }
   }
 
   const handleEditStart = (reg: Registration) => {
     setEditingReg(reg)
     setEditName(reg.full_name)
+    setEditGuestNames(reg.guest_names ? [...reg.guest_names] : [])
+    setEditPaymentStatus(reg.payment_status)
   }
 
   const handleEditSave = async () => {
-    if (!editingReg || !editName.trim()) return
+    if (!editingReg) return
+
+    const nameChanged = editName.trim() !== editingReg.full_name
+    const guestNamesChanged = JSON.stringify(editGuestNames.map(n => n.trim()).filter(Boolean)) !== JSON.stringify(editingReg.guest_names || [])
+
+    if (!nameChanged && !guestNamesChanged) {
+      setEditingReg(null)
+      return
+    }
 
     setSavingEdit(true)
     try {
+      const body: any = { id: editingReg.id }
+      if (nameChanged) body.full_name = editName.trim()
+      if (guestNamesChanged) body.guest_names = editGuestNames.map(n => n.trim()).filter(Boolean)
+
       const response = await fetch('/api/admin/registrations', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id: editingReg.id, full_name: editName.trim() }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
@@ -208,9 +230,13 @@ function AdminRegistrationsContent() {
         return
       }
 
-      // Update the registration in state
+      // Update in state
+      const updatedFields: any = {}
+      if (nameChanged) updatedFields.full_name = editName.trim()
+      if (guestNamesChanged) updatedFields.guest_names = editGuestNames.map(n => n.trim()).filter(Boolean)
+
       setRegistrations((prev) =>
-        prev.map((r) => (r.id === editingReg.id ? { ...r, full_name: editName.trim() } : r))
+        prev.map((r) => (r.id === editingReg.id ? { ...r, ...updatedFields } : r))
       )
       setEditingReg(null)
     } catch (err) {
@@ -220,8 +246,16 @@ function AdminRegistrationsContent() {
     }
   }
 
+  const updateGuestName = (index: number, value: string) => {
+    setEditGuestNames(prev => {
+      const updated = [...prev]
+      updated[index] = value
+      return updated
+    })
+  }
+
   const exportCSV = () => {
-    const headers = ['Date', 'Event', 'Name', 'Email', 'Phone', 'Tickets', 'Payment Status', 'Payment ID']
+    const headers = ['Date', 'Event', 'Name', 'Email', 'Phone', 'Tickets', 'Guest Names', 'Payment Status', 'Payment Provider', 'Payment ID']
     const rows = registrations.map((reg) => [
       new Date(reg.created_at).toLocaleString(),
       reg.event?.name || 'N/A',
@@ -229,7 +263,9 @@ function AdminRegistrationsContent() {
       reg.email,
       reg.phone || '',
       reg.tickets.toString(),
+      (reg.guest_names || []).join('; '),
       reg.payment_status,
+      reg.payment_provider || '',
       reg.payment_id || '',
     ])
 
@@ -243,7 +279,6 @@ function AdminRegistrationsContent() {
     window.URL.revokeObjectURL(url)
   }
 
-  // Show loading while checking authentication
   if (isChecking) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white flex items-center justify-center">
@@ -252,7 +287,6 @@ function AdminRegistrationsContent() {
     )
   }
 
-  // If not authenticated, show a message with link to login
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white flex items-center justify-center">
@@ -268,6 +302,9 @@ function AdminRegistrationsContent() {
       </div>
     )
   }
+
+  const isPendingCheck = (reg: Registration) =>
+    reg.payment_status === 'pending' && reg.payment_provider === 'check'
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white py-8 md:py-12">
@@ -314,8 +351,8 @@ function AdminRegistrationsContent() {
               </Button>
             </div>
             <div className="text-sm text-neutral-600">
-              {showPending 
-                ? 'Showing only abandoned (pending) registrations. Uncheck to see completed registrations.' 
+              {showPending
+                ? 'Showing only abandoned (pending) registrations. Uncheck to see completed registrations.'
                 : 'Showing only completed registrations (free/paid). Check "Show only abandoned" to see pending forms.'}
             </div>
           </div>
@@ -383,26 +420,17 @@ function AdminRegistrationsContent() {
                         {reg.payment_id || '-'}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-3">
                           <button
                             onClick={() => handleEditStart(reg)}
-                            className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                            className="text-primary hover:underline text-sm"
                           >
-                            Edit
+                            View/Edit
                           </button>
-                          {reg.payment_status === 'pending' && reg.payment_id?.startsWith('CHECK-') && (
-                            <button
-                              onClick={() => handleMarkPaid(reg)}
-                              disabled={markingPaidId === reg.id}
-                              className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-green-300 rounded transition-colors"
-                            >
-                              {markingPaidId === reg.id ? 'Updating...' : 'Mark Check Received'}
-                            </button>
-                          )}
                           <button
                             onClick={() => handleDelete(reg)}
                             disabled={deletingId === reg.id}
-                            className="px-3 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 rounded transition-colors"
+                            className="text-red-600 hover:underline text-sm"
                           >
                             {deletingId === reg.id ? 'Deleting...' : 'Delete'}
                           </button>
@@ -416,15 +444,96 @@ function AdminRegistrationsContent() {
           )}
         </Card>
 
-        {/* Edit Registration Modal */}
+        {/* View/Edit Registration Modal */}
         {editingReg && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
-              <h2 className="text-lg font-bold text-neutral-900 mb-4">Edit Registration</h2>
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-lg font-bold text-neutral-900 mb-4">View/Edit Registration</h2>
+
+              {/* Read-only registration info */}
+              <div className="bg-neutral-50 rounded-lg p-4 mb-5 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Event</span>
+                  <span className="text-neutral-900 font-medium">{editingReg.event?.name || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Email</span>
+                  <span className="text-neutral-900">{editingReg.email}</span>
+                </div>
+                {editingReg.phone && (
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">Phone</span>
+                    <span className="text-neutral-900">{editingReg.phone}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Tickets</span>
+                  <span className="text-neutral-900">{editingReg.tickets}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Payment ID</span>
+                  <span className="text-neutral-900 font-mono text-xs">{editingReg.payment_id || '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Provider</span>
+                  <span className="text-neutral-900">{editingReg.payment_provider || '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Registered</span>
+                  <span className="text-neutral-900">{new Date(editingReg.created_at).toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Payment Status Toggle — only for pending check payments */}
+              {isPendingCheck(editingReg) && editPaymentStatus === 'pending' && (
+                <div className="mb-5 p-4 border border-neutral-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-neutral-900">Payment Status</p>
+                      <p className="text-xs text-neutral-500">Toggle to mark check as received</p>
+                    </div>
+                    <button
+                      onClick={handleTogglePaid}
+                      disabled={togglingPaid}
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 bg-neutral-300 hover:bg-neutral-400"
+                      role="switch"
+                      aria-checked="false"
+                      aria-label="Mark payment as received"
+                    >
+                      <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1" />
+                    </button>
+                  </div>
+                  {togglingPaid && (
+                    <p className="text-xs text-neutral-500 mt-2">Updating payment status...</p>
+                  )}
+                </div>
+              )}
+
+              {/* Show paid status if already toggled */}
+              {(editPaymentStatus === 'paid' || editingReg.payment_status === 'paid') && editingReg.payment_provider === 'check' && (
+                <div className="mb-5 p-4 border border-green-200 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Payment Status</p>
+                      <p className="text-xs text-green-600">Check payment received</p>
+                    </div>
+                    <div
+                      className="relative inline-flex h-6 w-11 items-center rounded-full bg-green-500 cursor-default"
+                      role="switch"
+                      aria-checked="true"
+                      aria-label="Payment received"
+                    >
+                      <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Editable fields */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1">
-                    Attendee Name
+                    Primary Registrant Name
                   </label>
                   <input
                     type="text"
@@ -434,12 +543,31 @@ function AdminRegistrationsContent() {
                     placeholder="Full name"
                   />
                 </div>
-                <div className="text-sm text-neutral-500">
-                  <p>Email: {editingReg.email}</p>
-                  <p>Event: {editingReg.event?.name || 'N/A'}</p>
-                  <p>Tickets: {editingReg.tickets}</p>
-                </div>
+
+                {/* Guest names */}
+                {editGuestNames.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Guest Names
+                    </label>
+                    <div className="space-y-2">
+                      {editGuestNames.map((name, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <span className="text-xs text-neutral-400 w-6 text-right">{index + 1}.</span>
+                          <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => updateGuestName(index, e.target.value)}
+                            className="flex-1 px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                            placeholder={`Guest ${index + 1} name`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   onClick={() => setEditingReg(null)}
@@ -449,7 +577,7 @@ function AdminRegistrationsContent() {
                 </button>
                 <button
                   onClick={handleEditSave}
-                  disabled={savingEdit || !editName.trim() || editName.trim() === editingReg.full_name}
+                  disabled={savingEdit}
                   className="px-4 py-2 text-sm font-medium text-white bg-black hover:bg-neutral-800 disabled:bg-neutral-300 rounded-lg transition-colors"
                 >
                   {savingEdit ? 'Saving...' : 'Save Changes'}
