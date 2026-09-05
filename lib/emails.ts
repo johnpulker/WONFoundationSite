@@ -1497,6 +1497,207 @@ Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All
   }
 }
 
+/**
+ * Send payment confirmation email to registrant when admin marks event registration as paid
+ */
+export async function sendRegistrationPaymentConfirmationEmail(data: {
+  email: string
+  fullName: string
+  eventName: string
+  eventDate: string
+  tickets: number
+  paymentId?: string | null
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set, skipping registration payment confirmation email')
+    return
+  }
+
+  if (!FROM_EMAIL || FROM_EMAIL === 'events@mydomain.com') {
+    console.error('FROM_EMAIL not properly configured, skipping registration payment confirmation email')
+    return
+  }
+
+  const siteUrl = SITE_URL || 'https://wonfoundation.net'
+
+  // Parse event date
+  const eventDate = new Date(data.eventDate)
+  const formattedDate = !isNaN(eventDate.getTime())
+    ? eventDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/New_York',
+      })
+    : data.eventDate
+
+  const formattedTime = !isNaN(eventDate.getTime())
+    ? eventDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short',
+        timeZone: 'America/New_York',
+      })
+    : ''
+
+  const firstName = data.fullName.split(' ')[0] || data.fullName
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; line-height: 1.6; color: #374151;">
+    <div style="max-width: 700px; margin: 0 auto; padding: 20px;">
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #871c1c 0%, #a02323 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+        <h1 style="color: #E7C418; margin: 0; font-size: 28px; font-weight: bold;">
+          Women Officials Network Foundation
+        </h1>
+      </div>
+
+      <!-- Main Content -->
+      <div style="background: white; padding: 40px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          Dear ${firstName},
+        </p>
+
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          Great news! The WON Foundation has received your payment and your event registration is now <strong>confirmed</strong>.
+        </p>
+
+        <p style="font-size: 16px; margin: 0 0 20px 0;">
+          We truly appreciate your support and look forward to seeing you at the event!
+        </p>
+
+        <!-- Registration Details Box -->
+        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 15px 0; color: #1f2937;">Registration Details:</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Event:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${data.eventName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Date:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${formattedDate}${formattedTime ? ' at ' + formattedTime : ''}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Tickets:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${data.tickets}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Payment Status:</td>
+              <td style="padding: 8px 0; font-weight: bold; color: #16a34a;">Paid</td>
+            </tr>${data.paymentId ? `
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Reference ID:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${data.paymentId}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <p style="font-size: 16px; margin: 0 0 30px 0; font-weight: bold;">
+          Here's to a WONderful event!
+        </p>
+
+        <!-- Contact & Social -->
+        <div style="margin-bottom: 30px;">
+          <h2 style="font-size: 18px; font-weight: bold; margin: 0 0 15px 0; color: #1f2937;">Organization Contact Information:</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Name:</td>
+              <td style="padding: 8px 0; font-weight: bold;">Women Officials Network Foundation</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Address:</td>
+              <td style="padding: 8px 0; font-weight: bold;">6725 Daly Road, Ste. 252572, West Bloomfield, MI 48325</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Contact Email:</td>
+              <td style="padding: 8px 0; font-weight: bold;"><a href="mailto:${ADMIN_EMAIL}" style="color: #871c1c; text-decoration: underline;">${ADMIN_EMAIL}</a></td>
+            </tr>
+          </table>
+
+          <!-- Social Media Links -->
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Follow us:</p>
+            <div style="display: inline-flex; gap: 15px; align-items: center;">
+              <a href="https://www.facebook.com/womenofficialsmi" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="color: #1877F2; vertical-align: middle;">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+              </a>
+              <a href="https://www.instagram.com/thewonfoundation/#" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="color: #E4405F; vertical-align: middle;">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size: 16px; margin: 30px 0 0 0; text-align: center; color: #871c1c; font-weight: bold;">
+          Thanks again for supporting Women Officials Network Foundation!
+        </p>
+
+        <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center; color: #6b7280; font-size: 12px;">
+          <p style="margin: 0;">
+            Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+  `.trim()
+
+  const textContent = `
+Dear ${firstName},
+
+Great news! The WON Foundation has received your payment and your event registration is now confirmed.
+
+We truly appreciate your support and look forward to seeing you at the event!
+
+Registration Details:
+Event: ${data.eventName}
+Date: ${formattedDate}${formattedTime ? ' at ' + formattedTime : ''}
+Tickets: ${data.tickets}
+Payment Status: Paid${data.paymentId ? '\nReference ID: ' + data.paymentId : ''}
+
+Here's to a WONderful event!
+
+Organization Contact Information:
+Name: Women Officials Network Foundation
+Address: 6725 Daly Road, Ste. 252572, West Bloomfield, MI 48325
+Contact Email: ${ADMIN_EMAIL}
+
+Follow us:
+Facebook: https://www.facebook.com/womenofficialsmi
+Instagram: https://www.instagram.com/thewonfoundation/#
+
+Thanks again for supporting Women Officials Network Foundation!
+
+Copyright © ${new Date().getFullYear()} Women Officials Network Foundation. All rights reserved.
+  `.trim()
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.email,
+      subject: `Payment Confirmed — ${data.eventName}`,
+      html: htmlContent,
+      text: textContent,
+    })
+    console.log('[emails] registration payment confirmation email sent to', data.email)
+  } catch (error) {
+    console.error('[emails] failed to send registration payment confirmation email:', error)
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Sponsorship emails
 // ---------------------------------------------------------------------------

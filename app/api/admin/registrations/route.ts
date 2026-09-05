@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { requireAdminAuth } from '@/lib/adminAuth'
+import { sendRegistrationPaymentConfirmationEmail } from '@/lib/emails'
 
 interface AdminRegistrationsBody {
   eventSlug?: string | null
@@ -142,6 +143,100 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error in admin registrations DELETE:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// PATCH - Edit registration (update name or mark as paid)
+export async function PATCH(request: NextRequest) {
+  try {
+    const auth = await requireAdminAuth(request)
+    if (!auth.valid) {
+      return auth.response!
+    }
+
+    const body = await request.json()
+    const { id, full_name, mark_as_paid } = body || {}
+
+    if (!id) {
+      return NextResponse.json({ error: 'Registration ID is required' }, { status: 400 })
+    }
+
+    const supabase = createAdminClient()
+
+    // If marking as paid, verify it's a pending check payment first
+    if (mark_as_paid) {
+      const { data: existing, error: fetchError } = await supabase
+        .from('event_registrations')
+        .select(`
+          *,
+          event:event_registrations_events!event_id (
+            id,
+            name,
+            date
+          )
+        `)
+        .eq('id', id)
+        .single()
+
+      if (fetchError || !existing) {
+        return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
+      }
+
+      if (existing.payment_status !== 'pending' || existing.payment_provider !== 'check') {
+        return NextResponse.json(
+          { error: 'Only pending check payments can be marked as paid' },
+          { status: 400 }
+        )
+      }
+
+      const { data: updated, error: updateError } = await supabase
+        .from('event_registrations')
+        .update({ payment_status: 'paid' })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (updateError || !updated) {
+        console.error('Error marking registration as paid:', updateError)
+        return NextResponse.json({ error: 'Failed to update registration' }, { status: 500 })
+      }
+
+      // Send confirmation email (non-blocking)
+      sendRegistrationPaymentConfirmationEmail({
+        email: existing.email,
+        fullName: existing.full_name,
+        eventName: existing.event?.name || 'Event',
+        eventDate: existing.event?.date || '',
+        tickets: existing.tickets,
+        paymentId: existing.payment_id,
+      }).catch((error) => {
+        console.error('Error sending registration payment confirmation email:', error)
+      })
+
+      return NextResponse.json({ success: true, registration: updated })
+    }
+
+    // Otherwise, update the name
+    if (!full_name || full_name.trim() === '') {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('event_registrations')
+      .update({ full_name: full_name.trim() })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateError || !updated) {
+      console.error('Error updating registration:', updateError)
+      return NextResponse.json({ error: 'Failed to update registration' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, registration: updated })
+  } catch (error) {
+    console.error('Error in admin registrations PATCH:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

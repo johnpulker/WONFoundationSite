@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { requireAdminAuth } from '@/lib/adminAuth'
+import { sendMemberActivationEmail } from '@/lib/emails'
 
 // GET - Fetch all payments with user and registration info
 export async function GET(request: NextRequest) {
@@ -206,6 +207,31 @@ export async function POST(request: NextRequest) {
       if (membershipError) {
         console.error("Error activating membership:", membershipError);
         // Don't fail the whole request – payment status is already updated
+      }
+
+      // Send activation email to the member (non-blocking)
+      // Look up user profile for name info
+      const { data: profile } = await adminClient
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', membershipUserId)
+        .single()
+
+      const { data: user } = await adminClient
+        .from('users')
+        .select('email')
+        .eq('id', membershipUserId)
+        .single()
+
+      if (user?.email) {
+        sendMemberActivationEmail({
+          email: user.email,
+          firstName: profile?.first_name || '',
+          lastName: profile?.last_name || '',
+          membershipLevel: membershipLevel,
+        }).catch((error) => {
+          console.error('Error sending member activation email:', error)
+        })
       }
     }
 

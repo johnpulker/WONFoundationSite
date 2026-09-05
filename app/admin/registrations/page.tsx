@@ -34,6 +34,10 @@ function AdminRegistrationsContent() {
   const [eventFilter, setEventFilter] = useState<string>('')
   const [showPending, setShowPending] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null)
+  const [editingReg, setEditingReg] = useState<Registration | null>(null)
+  const [editName, setEditName] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
     // Check if session is valid by making a server-side validation request
@@ -147,6 +151,72 @@ function AdminRegistrationsContent() {
       alert('Failed to delete registration')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  const handleMarkPaid = async (reg: Registration) => {
+    if (!confirm(`Mark this check payment as received for ${reg.full_name}? A confirmation email will be sent to ${reg.email}.`)) {
+      return
+    }
+
+    setMarkingPaidId(reg.id)
+    try {
+      const response = await fetch('/api/admin/registrations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: reg.id, mark_as_paid: true }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        alert(data.error || 'Failed to mark as paid')
+        return
+      }
+
+      // Update the registration in state
+      setRegistrations((prev) =>
+        prev.map((r) => (r.id === reg.id ? { ...r, payment_status: 'paid' } : r))
+      )
+    } catch (err) {
+      alert('Failed to mark as paid')
+    } finally {
+      setMarkingPaidId(null)
+    }
+  }
+
+  const handleEditStart = (reg: Registration) => {
+    setEditingReg(reg)
+    setEditName(reg.full_name)
+  }
+
+  const handleEditSave = async () => {
+    if (!editingReg || !editName.trim()) return
+
+    setSavingEdit(true)
+    try {
+      const response = await fetch('/api/admin/registrations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: editingReg.id, full_name: editName.trim() }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        alert(data.error || 'Failed to update registration')
+        return
+      }
+
+      // Update the registration in state
+      setRegistrations((prev) =>
+        prev.map((r) => (r.id === editingReg.id ? { ...r, full_name: editName.trim() } : r))
+      )
+      setEditingReg(null)
+    } catch (err) {
+      alert('Failed to update registration')
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -313,13 +383,30 @@ function AdminRegistrationsContent() {
                         {reg.payment_id || '-'}
                       </td>
                       <td className="py-3 px-4">
-                        <button
-                          onClick={() => handleDelete(reg)}
-                          disabled={deletingId === reg.id}
-                          className="px-3 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 rounded transition-colors"
-                        >
-                          {deletingId === reg.id ? 'Deleting...' : 'Delete'}
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => handleEditStart(reg)}
+                            className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                          >
+                            Edit
+                          </button>
+                          {reg.payment_status === 'pending' && reg.payment_id?.startsWith('CHECK-') && (
+                            <button
+                              onClick={() => handleMarkPaid(reg)}
+                              disabled={markingPaidId === reg.id}
+                              className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-green-300 rounded transition-colors"
+                            >
+                              {markingPaidId === reg.id ? 'Updating...' : 'Mark Check Received'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(reg)}
+                            disabled={deletingId === reg.id}
+                            className="px-3 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 rounded transition-colors"
+                          >
+                            {deletingId === reg.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -328,6 +415,49 @@ function AdminRegistrationsContent() {
             </div>
           )}
         </Card>
+
+        {/* Edit Registration Modal */}
+        {editingReg && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+              <h2 className="text-lg font-bold text-neutral-900 mb-4">Edit Registration</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
+                    Attendee Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                    placeholder="Full name"
+                  />
+                </div>
+                <div className="text-sm text-neutral-500">
+                  <p>Email: {editingReg.email}</p>
+                  <p>Event: {editingReg.event?.name || 'N/A'}</p>
+                  <p>Tickets: {editingReg.tickets}</p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setEditingReg(null)}
+                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditSave}
+                  disabled={savingEdit || !editName.trim() || editName.trim() === editingReg.full_name}
+                  className="px-4 py-2 text-sm font-medium text-white bg-black hover:bg-neutral-800 disabled:bg-neutral-300 rounded-lg transition-colors"
+                >
+                  {savingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
