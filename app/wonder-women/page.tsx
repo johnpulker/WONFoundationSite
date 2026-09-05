@@ -9,6 +9,7 @@ const subNavItems = [
   { id: "overview", label: "Overview" },
   { id: "current", label: "Honorees" },
   { id: "past", label: "Past Honorees" },
+  { id: "archive", label: "Archive", href: "/wonder-women/archive" },
   { id: "gallery", label: "Gallery" },
   { id: "sponsors", label: "Sponsors" },
 ];

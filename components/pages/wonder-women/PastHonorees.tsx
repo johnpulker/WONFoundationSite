@@ -289,23 +289,37 @@ export default function PastHonorees() {
             </div>
       </motion.div>
 
-      {/* View Full List Button */}
+      {/* Action Buttons */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ delay: 0.6 }}
-        className="text-center mt-8 md:mt-12"
+        className="text-center mt-8 md:mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
       >
         <Link
-          href="/wonder-women/all-recipients"
+          href="/wonder-women/archive"
           className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#871c1c] to-[#a02323] hover:from-[#a02323] hover:to-[#871c1c] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
         >
+          <span className="text-lg md:text-xl">Explore the Archive</span>
+          <svg
+            className="w-5 h-5 group-hover:translate-x-1 transition-transform"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </Link>
+        <Link
+          href="/wonder-women/all-recipients"
+          className="inline-flex items-center gap-3 px-8 py-4 border-2 border-[#871c1c] text-[#871c1c] hover:bg-[#871c1c] hover:text-white font-semibold rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group"
+        >
           <span className="text-lg md:text-xl">View Complete List</span>
-          <svg 
-            className="w-5 h-5 group-hover:translate-x-1 transition-transform" 
-            fill="none" 
-            viewBox="0 0 24 24" 
+          <svg
+            className="w-5 h-5 group-hover:translate-x-1 transition-transform"
+            fill="none"
+            viewBox="0 0 24 24"
             stroke="currentColor"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 interface SubNavItem {
   id: string;
   label: string;
+  href?: string; // Optional link to another page instead of anchor scroll
 }
 
 interface SubNavProps {
@@ -16,6 +17,7 @@ interface SubNavProps {
 
 export default function SubNav({ items, className = "" }: SubNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState(items[0]?.id || "");
 
   // Scroll to top when pathname changes (new page)
@@ -91,7 +93,7 @@ export default function SubNav({ items, className = "" }: SubNavProps) {
           {items.map((item, index) => (
             <motion.button
               key={item.id}
-              onClick={() => scrollToSection(item.id)}
+              onClick={() => item.href ? router.push(item.href) : scrollToSection(item.id)}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
