@@ -100,7 +100,6 @@ export async function POST(request: NextRequest) {
         payment_status: 'pending',
         payment_provider: 'check',
         payment_id: checkOrderId,
-        amount_cents: totalCents,
       })
       .select()
       .single()
