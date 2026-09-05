@@ -156,7 +156,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, full_name, mark_as_paid } = body || {}
+    const { id, full_name, guest_names, mark_as_paid } = body || {}
 
     if (!id) {
       return NextResponse.json({ error: 'Registration ID is required' }, { status: 400 })
@@ -217,14 +217,24 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true, registration: updated })
     }
 
-    // Otherwise, update the name
-    if (!full_name || full_name.trim() === '') {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    // Otherwise, update name and/or guest names
+    const updateFields: Record<string, any> = {}
+
+    if (full_name && full_name.trim() !== '') {
+      updateFields.full_name = full_name.trim()
+    }
+
+    if (Array.isArray(guest_names)) {
+      updateFields.guest_names = guest_names.map((n: string) => n.trim()).filter(Boolean)
+    }
+
+    if (Object.keys(updateFields).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
     }
 
     const { data: updated, error: updateError } = await supabase
       .from('event_registrations')
-      .update({ full_name: full_name.trim() })
+      .update(updateFields)
       .eq('id', id)
       .select()
       .single()
