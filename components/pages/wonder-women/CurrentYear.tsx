@@ -114,7 +114,7 @@ export default function CurrentYear() {
                 className="inline-block text-4xl md:text-5xl lg:text-6xl font-semibold text-primary tracking-tight"
                 style={{ fontFamily: 'var(--font-cursive)' }}
               >
-                {displayYear} WONder Women
+                {displayYear} Wired WONder Women
               </span>
               <div className="flex items-center justify-center gap-4 mt-5">
                 <div className="h-px w-12 md:w-20 bg-[#E7C418]/40" />
