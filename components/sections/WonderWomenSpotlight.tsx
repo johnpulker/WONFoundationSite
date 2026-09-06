@@ -71,7 +71,7 @@ export default function WonderWomenSpotlight() {
                 fontFamily: 'var(--font-cursive)',
               }}
             >
-              {displayYear ?? ''} WONder Women
+              {displayYear ?? ''} Wired WONder Women
             </h2>
             {/* Premium gold divider */}
             <div className="flex items-center justify-center gap-4 mb-6">
