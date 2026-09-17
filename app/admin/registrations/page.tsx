@@ -371,37 +371,29 @@ function AdminRegistrationsContent() {
             <div className="text-center py-12 text-neutral-600">No registrations found.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b border-neutral-200">
-                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Date</th>
-                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Event (Slug)</th>
-                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Name</th>
-                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Email</th>
-                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Phone</th>
-                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Tickets</th>
-                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Payment Status</th>
-                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Payment ID</th>
-                    <th className="text-left py-3 px-4 font-semibold text-neutral-900">Actions</th>
+                    <th className="text-left py-3 px-3 font-semibold text-neutral-900 w-[100px]">Date</th>
+                    <th className="text-left py-3 px-3 font-semibold text-neutral-900">Event</th>
+                    <th className="text-left py-3 px-3 font-semibold text-neutral-900">Name</th>
+                    <th className="text-left py-3 px-3 font-semibold text-neutral-900 w-[60px]">Tickets</th>
+                    <th className="text-left py-3 px-3 font-semibold text-neutral-900 w-[110px]">Status</th>
+                    <th className="text-left py-3 px-3 font-semibold text-neutral-900 w-[120px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {registrations.map((reg) => (
                     <tr key={reg.id} className="border-b border-neutral-100 hover:bg-neutral-50">
-                      <td className="py-3 px-4 text-sm text-neutral-700">
-                        {new Date(reg.created_at).toLocaleString()}
+                      <td className="py-3 px-3 text-sm text-neutral-700 truncate">
+                        {new Date(reg.created_at).toLocaleDateString()}
                       </td>
-                      <td className="py-3 px-4 text-sm text-neutral-700">
+                      <td className="py-3 px-3 text-sm text-neutral-700 truncate">
                         {reg.event?.name || 'N/A'}
-                        {reg.event?.slug && (
-                          <span className="text-xs text-neutral-500 ml-2">({reg.event.slug})</span>
-                        )}
                       </td>
-                      <td className="py-3 px-4 text-sm text-neutral-900 font-medium">{reg.full_name}</td>
-                      <td className="py-3 px-4 text-sm text-neutral-700">{reg.email}</td>
-                      <td className="py-3 px-4 text-sm text-neutral-700">{reg.phone || '-'}</td>
-                      <td className="py-3 px-4 text-sm text-neutral-700">{reg.tickets}</td>
-                      <td className="py-3 px-4 text-sm">
+                      <td className="py-3 px-3 text-sm text-neutral-900 font-medium truncate">{reg.full_name}</td>
+                      <td className="py-3 px-3 text-sm text-neutral-700">{reg.tickets}</td>
+                      <td className="py-3 px-3 text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             reg.payment_status === 'paid'
@@ -416,10 +408,7 @@ function AdminRegistrationsContent() {
                           {reg.payment_status}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-sm text-neutral-700 font-mono text-xs">
-                        {reg.payment_id || '-'}
-                      </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3">
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => handleEditStart(reg)}
