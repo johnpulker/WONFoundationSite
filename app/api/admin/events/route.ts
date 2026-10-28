@@ -1,6 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { requireAdminAuth } from '@/lib/adminAuth'
+import { getTicketsSold, MAX_TICKETS_PER_PURCHASE_CEILING } from '@/lib/eventCapacity'
+
+/**
+ * Validates and normalizes: max tickets per purchase, total tickets available,
+ * and the external link toggle / URL / button text.
+ */
+function buildTicketAndLinkFields(body: any):
+  | { fields: Record<string, unknown> }
+  | { error: string } {
+  const max = Number(body.max_per_order ?? 1)
+  if (!Number.isInteger(max) || max < 1 || max > MAX_TICKETS_PER_PURCHASE_CEILING) {
+    return { error: `Max tickets per purchase must be a whole number from 1 to ${MAX_TICKETS_PER_PURCHASE_CEILING}.` }
+  }
+
+  let capacity: number | null = null
+  const isVirtual = (body.event_type || 'in_person') === 'virtual'
+  if (!isVirtual && body.ticket_capacity !== null && body.ticket_capacity !== undefined && body.ticket_capacity !== '') {
+    capacity = Number(body.ticket_capacity)
+    if (!Number.isInteger(capacity) || capacity < 1) {
+      return { error: 'Total tickets available must be a whole number of 1 or more, or left blank for unlimited.' }
+    }
+  }
+
+  const useExternal = body.use_external_registration === true
+  let url: string | null = null
+  let buttonText: string | null = null
+  if (useExternal) {
+    url = String(body.external_registration_url || '').trim()
+    try {
+      const parsed = new URL(url)
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('bad protocol')
+    } catch {
+      return { error: 'Please enter a full external link starting with https:// (e.g., https://www.eventbrite.com/...).' }
+    }
+    buttonText = String(body.external_link_button_text || '').trim().slice(0, 60) || null
+  }
+
+  return {
+    fields: {
+      max_per_order: max,
+      ticket_capacity: capacity,
+      use_external_registration: useExternal,
+      external_registration_url: url,
+      external_link_button_text: buttonText,
+    },
+  }
+}
 
 // GET - Fetch all events with registration counts
 export async function GET(request: NextRequest) {
@@ -43,10 +90,19 @@ export async function GET(request: NextRequest) {
 
         const totalTickets = (ticketData || []).reduce((sum, reg) => sum + (reg.tickets || 1), 0)
 
+        // Tickets that count toward capacity (free, paid, pending check)
+        let ticketsSold = totalTickets
+        try {
+          ticketsSold = await getTicketsSold(adminClient, event.id)
+        } catch {
+          // Migration 029 not run yet - fall back to raw ticket total
+        }
+
         return {
           ...event,
           registration_count: count || 0,
           total_tickets: totalTickets,
+          tickets_sold: ticketsSold,
         }
       })
     )
@@ -69,6 +125,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const adminClient = createAdminClient()
 
+    const extraFields = buildTicketAndLinkFields(body)
+    if ('error' in extraFields) {
+      return NextResponse.json({ error: extraFields.error }, { status: 400 })
+    }
+
     const { data, error } = await adminClient
       .from('event_registrations_events')
       .insert({
@@ -88,8 +149,7 @@ export async function POST(request: NextRequest) {
         notes: body.notes || null,
         event_type: body.event_type || 'in_person',
         duration_minutes: body.duration_minutes || 120,
-        use_external_registration: body.use_external_registration ?? false,
-        external_registration_url: body.use_external_registration ? (body.external_registration_url || null) : null,
+        ...extraFields.fields,
       })
       .select()
       .single()
@@ -117,6 +177,11 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const adminClient = createAdminClient()
 
+    const extraFields = buildTicketAndLinkFields(body)
+    if ('error' in extraFields) {
+      return NextResponse.json({ error: extraFields.error }, { status: 400 })
+    }
+
     if (!body.id) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 })
     }
@@ -140,8 +205,7 @@ export async function PUT(request: NextRequest) {
         notes: body.notes || null,
         event_type: body.event_type || 'in_person',
         duration_minutes: body.duration_minutes || 120,
-        use_external_registration: body.use_external_registration ?? false,
-        external_registration_url: body.use_external_registration ? (body.external_registration_url || null) : null,
+        ...extraFields.fields,
       })
       .eq('id', body.id)
       .select()

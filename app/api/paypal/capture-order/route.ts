@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { capturePayPalOrder } from '@/lib/paypal'
 import { sendUserConfirmationEmail, sendOrganizerNotificationEmail } from '@/lib/emails'
+import { capacityErrorMessage } from '@/lib/eventCapacity'
 
 interface CaptureOrderBody {
   orderID: string
@@ -18,17 +19,60 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const supabase = createAdminClient()
+
+    // Hold the tickets BEFORE charging. If the event sold out while the buyer
+    // was in the PayPal window, we stop here and the card is never charged.
+    const { data: reserve, error: reserveError } = await supabase.rpc('reserve_paypal_registration', {
+      p_payment_id: body.orderID,
+    })
+
+    if (reserveError) {
+      console.error('reserve_paypal_registration error:', reserveError)
+      return NextResponse.json(
+        { error: 'Unable to confirm ticket availability. You have not been charged. Please try again.' },
+        { status: 500 }
+      )
+    }
+
+    if (reserve && reserve.ok === false) {
+      if (reserve.reason === 'not_found') {
+        return NextResponse.json(
+          { error: 'Registration not found for this order' },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json(
+        { error: `${capacityErrorMessage(reserve.reason)} You have not been charged.`, reason: reserve.reason },
+        { status: 409 }
+      )
+    }
+
     // Capture the PayPal order
-    const captureResult = await capturePayPalOrder(body.orderID)
+    let captureResult: Awaited<ReturnType<typeof capturePayPalOrder>>
+    try {
+      captureResult = await capturePayPalOrder(body.orderID)
+    } catch (captureError) {
+      // Release the hold so the tickets aren't stuck
+      await supabase
+        .from('event_registrations')
+        .update({ payment_status: 'pending' })
+        .eq('payment_id', body.orderID)
+        .eq('payment_status', 'processing')
+      throw captureError
+    }
 
     if (captureResult.status !== 'COMPLETED') {
+      await supabase
+        .from('event_registrations')
+        .update({ payment_status: 'pending' })
+        .eq('payment_id', body.orderID)
+        .eq('payment_status', 'processing')
       return NextResponse.json(
         { error: `Payment not completed. Status: ${captureResult.status}` },
         { status: 400 }
       )
     }
-
-    const supabase = createAdminClient()
 
     // Find registration by payment_id
     const { data: registration, error: regError } = await supabase

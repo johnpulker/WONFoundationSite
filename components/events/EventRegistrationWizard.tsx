@@ -22,6 +22,7 @@ interface Event {
   price_cents: number
   currency: string
   max_per_order: number
+  ticket_capacity?: number | null
   is_active: boolean
   event_type?: string | null
   duration_minutes?: number | null
@@ -48,7 +49,18 @@ interface FormData {
   guestNames: string[]
 }
 
-export default function EventRegistrationWizard({ event }: { event: Event }) {
+export default function EventRegistrationWizard({
+  event,
+  ticketsRemaining = null,
+}: {
+  event: Event
+  /** Tickets left for in-person events with a capacity; null = unlimited */
+  ticketsRemaining?: number | null
+}) {
+  const maxPerOrder = Math.min(Math.max(1, Number(event.max_per_order) || 10), 10)
+  const isSoldOut = ticketsRemaining !== null && ticketsRemaining <= 0
+  // Highest quantity the picker allows: the per-purchase limit, or fewer if that's all that's left
+  const pickerMax = ticketsRemaining !== null ? Math.max(0, Math.min(maxPerOrder, ticketsRemaining)) : maxPerOrder
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<FormData>({
     tickets: 0,
@@ -131,8 +143,13 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
     if (formData.tickets < 1) {
       newErrors.tickets = 'Please select a ticket.'
     }
-    if (formData.tickets > 10) {
-      newErrors.tickets = 'Maximum 10 tickets per registration.'
+    if (isSoldOut) {
+      newErrors.tickets = 'Sorry, this event is sold out.'
+    } else if (formData.tickets > pickerMax) {
+      newErrors.tickets =
+        formData.tickets > maxPerOrder
+          ? `Maximum ${maxPerOrder} ${maxPerOrder === 1 ? 'ticket' : 'tickets'} per purchase.`
+          : 'There are not enough tickets left for that quantity. Please choose fewer tickets.'
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -381,6 +398,14 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
           {/* Ticket Selection Card */}
           <Card>
             <h2 className="text-xl font-semibold text-neutral-900 mb-6">Ticket</h2>
+            {isSoldOut ? (
+              <div className="space-y-2">
+                <div className="text-2xl font-bold text-neutral-900">{formatPrice(event.price_cents)}</div>
+                <div className="inline-flex items-center px-4 py-2 rounded-full bg-red-100 text-red-700 text-lg font-bold uppercase tracking-wide">
+                  Sold Out
+                </div>
+              </div>
+            ) : (
             <div className="space-y-4">
               <div className="text-2xl font-bold text-neutral-900">{formatPrice(event.price_cents)}</div>
               <div className="flex items-center space-x-4">
@@ -394,30 +419,33 @@ export default function EventRegistrationWizard({ event }: { event: Event }) {
                 <input
                   type="number"
                   min="0"
-                  max="10"
+                  max={pickerMax}
                   value={formData.tickets}
                   onChange={(e) => {
                     const val = parseInt(e.target.value) || 0
-                    setFormData({ ...formData, tickets: Math.min(10, Math.max(0, val)) })
+                    setFormData({ ...formData, tickets: Math.min(pickerMax, Math.max(0, val)) })
                   }}
                   className="w-20 text-center text-lg font-semibold border-2 border-neutral-300 rounded-lg py-2"
                 />
                 <button
-                  onClick={() => setFormData({ ...formData, tickets: Math.min(10, formData.tickets + 1) })}
+                  onClick={() => setFormData({ ...formData, tickets: Math.min(pickerMax, formData.tickets + 1) })}
                   className="w-10 h-10 rounded-full border-2 border-neutral-300 flex items-center justify-center hover:border-neutral-400 transition-colors"
-                  disabled={formData.tickets >= 10}
+                  disabled={formData.tickets >= pickerMax}
                 >
                   <span className="text-neutral-600">+</span>
                 </button>
               </div>
-              <div className="text-sm text-neutral-600">Maximum 10 tickets per registration</div>
+              <div className="text-sm text-neutral-600">
+                Maximum {maxPerOrder} {maxPerOrder === 1 ? 'ticket' : 'tickets'} per purchase
+              </div>
               {errors.tickets && <div className="text-sm text-red-600">{errors.tickets}</div>}
             </div>
+            )}
             <div className="mt-6 flex justify-end">
               <Button
                 onClick={handleNext}
                 className="bg-black text-white hover:bg-neutral-800"
-                disabled={formData.tickets < 1 || isSessionExpired}
+                disabled={formData.tickets < 1 || isSessionExpired || isSoldOut}
               >
                 Continue
               </Button>

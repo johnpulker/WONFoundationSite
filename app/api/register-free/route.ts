@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { sendUserConfirmationEmail, sendOrganizerNotificationEmail } from '@/lib/emails'
+import { getMaxPerOrder, capacityErrorMessage } from '@/lib/eventCapacity'
 
 interface RegisterFreeBody {
   eventId: string
@@ -43,17 +44,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate ticket count
-    if (body.tickets < 1) {
+    if (!Number.isInteger(body.tickets) || body.tickets < 1) {
       return NextResponse.json(
         { error: 'Ticket count must be at least 1' },
-        { status: 400 }
-      )
-    }
-
-    // Enforce maximum 1 ticket per registration
-    if (body.tickets > 1) {
-      return NextResponse.json(
-        { error: 'Maximum 1 ticket per registration' },
         { status: 400 }
       )
     }
@@ -82,11 +75,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert registration
-    const { data: registration, error: regError } = await supabase
-      .from('event_registrations')
-      .insert({
-        event_id: body.eventId,
+    if (event.use_external_registration) {
+      return NextResponse.json(
+        { error: 'Registration for this event is handled on an external site.' },
+        { status: 400 }
+      )
+    }
+
+    // Enforce this event's max tickets per purchase
+    const maxPerOrder = getMaxPerOrder(event)
+    if (body.tickets > maxPerOrder) {
+      return NextResponse.json(
+        { error: capacityErrorMessage('over_limit', maxPerOrder) },
+        { status: 400 }
+      )
+    }
+
+    // Insert registration (atomic capacity check in the database)
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('create_event_registration', {
+      p_event_id: body.eventId,
+      p_data: {
         full_name: body.full_name,
         email: body.email,
         phone: body.phone || null,
@@ -105,9 +113,18 @@ export async function POST(request: NextRequest) {
         payment_status: 'free',
         payment_provider: null,
         payment_id: null,
-      })
-      .select()
-      .single()
+      },
+    })
+
+    if (!rpcError && rpcResult && rpcResult.ok === false) {
+      return NextResponse.json(
+        { error: capacityErrorMessage(rpcResult.reason, maxPerOrder), reason: rpcResult.reason },
+        { status: rpcResult.reason === 'not_found' ? 404 : 409 }
+      )
+    }
+
+    const registration = rpcResult?.registration
+    const regError = rpcError
 
     if (regError || !registration) {
       console.error('Registration insert error:', regError)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { createPayPalOrder } from '@/lib/paypal'
+import { getMaxPerOrder, getTicketsRemaining, capacityErrorMessage } from '@/lib/eventCapacity'
 
 interface CreateOrderBody {
   eventId: string
@@ -43,17 +44,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate ticket count
-    if (body.tickets < 1) {
+    if (!Number.isInteger(body.tickets) || body.tickets < 1) {
       return NextResponse.json(
         { error: 'Ticket count must be at least 1' },
-        { status: 400 }
-      )
-    }
-
-    // Enforce maximum 10 tickets per registration
-    if (body.tickets > 10) {
-      return NextResponse.json(
-        { error: 'Maximum 10 tickets per registration' },
         { status: 400 }
       )
     }
@@ -72,6 +65,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Event not found or inactive' },
         { status: 404 }
+      )
+    }
+
+    if (event.use_external_registration) {
+      return NextResponse.json(
+        { error: 'Registration for this event is handled on an external site.' },
+        { status: 400 }
+      )
+    }
+
+    // Enforce this event's max tickets per purchase
+    const maxPerOrder = getMaxPerOrder(event)
+    if (body.tickets > maxPerOrder) {
+      return NextResponse.json(
+        { error: capacityErrorMessage('over_limit', maxPerOrder) },
+        { status: 400 }
+      )
+    }
+
+    // Early availability check (the final, locked check happens at capture)
+    const remaining = await getTicketsRemaining(supabase, event)
+    if (remaining !== null && remaining < body.tickets) {
+      const reason = remaining === 0 ? 'sold_out' : 'not_enough'
+      return NextResponse.json(
+        { error: capacityErrorMessage(reason), reason },
+        { status: 409 }
       )
     }
 

@@ -23,6 +23,12 @@ interface Event {
   created_at: string;
   registration_count?: number;
   total_tickets?: number;
+  tickets_sold?: number;
+  max_per_order?: number | null;
+  ticket_capacity?: number | null;
+  use_external_registration?: boolean | null;
+  external_registration_url?: string | null;
+  external_link_button_text?: string | null;
 }
 
 export default function EventsView() {
@@ -44,10 +50,13 @@ export default function EventsView() {
     postal_code: "",
     country: "",
     price_cents: 0,
+    max_per_order: 1,
+    ticket_capacity: "",
     is_active: true,
     image_url: "",
     use_external_registration: false,
     external_registration_url: "",
+    external_link_button_text: "",
     event_type: "in_person",
     duration_minutes: 120,
   });
@@ -118,13 +127,23 @@ export default function EventsView() {
         postal_code: formData.event_type === 'virtual' ? null : (formData.postal_code || null),
         country: formData.event_type === 'virtual' ? null : (formData.country || null),
         price_cents: formData.price_cents,
+        max_per_order: formData.max_per_order,
+        ticket_capacity:
+          formData.event_type === 'virtual' || formData.ticket_capacity.trim() === ""
+            ? null
+            : parseInt(formData.ticket_capacity, 10),
         is_active: formData.is_active,
         image_url: formData.image_url || null,
         notes: formData.notes || null,
         event_type: formData.event_type || 'in_person',
         duration_minutes: formData.duration_minutes || 120,
-        use_external_registration: false,
-        external_registration_url: null,
+        use_external_registration: formData.use_external_registration,
+        external_registration_url: formData.use_external_registration
+          ? formData.external_registration_url.trim() || null
+          : null,
+        external_link_button_text: formData.use_external_registration
+          ? formData.external_link_button_text.trim() || null
+          : null,
       };
 
       const response = await fetch('/api/admin/events', {
@@ -157,10 +176,13 @@ export default function EventsView() {
         postal_code: "",
         country: "",
         price_cents: 0,
+        max_per_order: 1,
+        ticket_capacity: "",
         is_active: true,
         image_url: "",
         use_external_registration: false,
         external_registration_url: "",
+        external_link_button_text: "",
         event_type: "in_person",
         duration_minutes: 120,
       });
@@ -189,10 +211,13 @@ export default function EventsView() {
       postal_code: event.postal_code || "",
       country: event.country || "",
       price_cents: event.price_cents,
+      max_per_order: event.max_per_order ?? 10,
+      ticket_capacity: event.ticket_capacity ? String(event.ticket_capacity) : "",
       is_active: event.is_active,
       image_url: event.image_url || "",
-      use_external_registration: false,
-      external_registration_url: "",
+      use_external_registration: !!event.use_external_registration,
+      external_registration_url: event.external_registration_url || "",
+      external_link_button_text: event.external_link_button_text || "",
       event_type: event.event_type || "in_person",
       duration_minutes: event.duration_minutes || 120,
     });
@@ -335,10 +360,13 @@ export default function EventsView() {
               postal_code: "",
               country: "",
               price_cents: 0,
+              max_per_order: 1,
+              ticket_capacity: "",
               is_active: true,
               image_url: "",
               use_external_registration: false,
               external_registration_url: "",
+              external_link_button_text: "",
               event_type: "in_person",
               duration_minutes: 120,
             });
@@ -581,6 +609,122 @@ export default function EventsView() {
                 </p>
               </div>
 
+              <div className={`grid grid-cols-1 gap-4 ${formData.event_type !== 'virtual' ? 'md:grid-cols-2' : ''}`}>
+                <div>
+                  <label htmlFor="max_per_order" className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Max Tickets Per Purchase *
+                  </label>
+                  <select
+                    id="max_per_order"
+                    required
+                    value={formData.max_per_order}
+                    onChange={(e) => setFormData({ ...formData, max_per_order: parseInt(e.target.value, 10) })}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Most tickets one person can buy at a time (up to 10)
+                  </p>
+                </div>
+
+                {formData.event_type !== 'virtual' && (
+                  <div>
+                    <label htmlFor="ticket_capacity" className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Total Tickets Available
+                    </label>
+                    <input
+                      id="ticket_capacity"
+                      type="number"
+                      min="1"
+                      step="1"
+                      inputMode="numeric"
+                      value={formData.ticket_capacity}
+                      onChange={(e) => setFormData({ ...formData, ticket_capacity: e.target.value.replace(/[^0-9]/g, "") })}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                      placeholder="Unlimited"
+                    />
+                    <p className="text-xs text-neutral-500 mt-1">
+                      {editingEvent && formData.ticket_capacity
+                        ? `${editingEvent.tickets_sold ?? 0} sold so far. Leave blank for unlimited.`
+                        : "Leave blank for unlimited. Shows \"Sold Out\" when it hits zero."}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border-2 border-neutral-200 p-4 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <span id="external_link_label" className="block text-sm font-semibold text-neutral-700">
+                      Use External Link
+                    </span>
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Send visitors to another site (e.g., Eventbrite) instead of registering on this website.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formData.use_external_registration}
+                    aria-labelledby="external_link_label"
+                    onClick={() =>
+                      setFormData({ ...formData, use_external_registration: !formData.use_external_registration })
+                    }
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E7C418]/40 ${
+                      formData.use_external_registration ? "bg-[#871c1c]" : "bg-neutral-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        formData.use_external_registration ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                    <span className="sr-only">{formData.use_external_registration ? "On" : "Off"}</span>
+                  </button>
+                </div>
+
+                {formData.use_external_registration && (
+                  <>
+                    <div>
+                      <label htmlFor="external_registration_url" className="block text-sm font-semibold text-neutral-700 mb-2">
+                        External Link URL *
+                      </label>
+                      <input
+                        id="external_registration_url"
+                        type="url"
+                        required
+                        value={formData.external_registration_url}
+                        onChange={(e) => setFormData({ ...formData, external_registration_url: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                        placeholder="https://"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="external_link_button_text" className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Button Text
+                      </label>
+                      <input
+                        id="external_link_button_text"
+                        type="text"
+                        maxLength={60}
+                        value={formData.external_link_button_text}
+                        onChange={(e) => setFormData({ ...formData, external_link_button_text: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
+                        placeholder="Register Now"
+                      />
+                      <p className="text-xs text-neutral-500 mt-1">
+                        Shown on the event page. Opens the link in a new tab. Defaults to &quot;Register Now&quot;.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-neutral-700 mb-2">
                   Event Image
@@ -749,9 +893,27 @@ export default function EventsView() {
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#871c1c]/10 text-[#871c1c]">
                             {event.registration_count || 0} {event.registration_count === 1 ? 'registration' : 'registrations'}
                           </span>
-                          {(event.total_tickets || 0) > (event.registration_count || 0) && (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#E7C418]/10 text-[#C9A814]">
-                              {event.total_tickets} tickets
+                          {event.ticket_capacity && event.event_type !== 'virtual' ? (
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                (event.tickets_sold ?? 0) >= event.ticket_capacity
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-[#E7C418]/10 text-[#C9A814]"
+                              }`}
+                            >
+                              {event.tickets_sold ?? 0} / {event.ticket_capacity} sold
+                              {(event.tickets_sold ?? 0) >= event.ticket_capacity ? " · Sold Out" : ""}
+                            </span>
+                          ) : (
+                            (event.total_tickets || 0) > (event.registration_count || 0) && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#E7C418]/10 text-[#C9A814]">
+                                {event.total_tickets} tickets
+                              </span>
+                            )
+                          )}
+                          {event.use_external_registration && (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600">
+                              External link
                             </span>
                           )}
                         </div>
