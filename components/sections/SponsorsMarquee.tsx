@@ -5,19 +5,13 @@ import { useState, useEffect } from "react";
 
 /* Static 2025 sponsor logos in /public/sponsors/ */
 const legacySponsors = [
-  "13th-congressional-district-logo.jpg",
   "all-pro-color-logo.png",
-  "bernardwealthmanaglogo-media-larger.png",
-  "Comericabank.jpg",
-  "forever-fresh-logo.jpg",
   "IBW.png",
-  "jmg-logo-small.jpg",
   "lawrencetech.jpg",
   "mann-law-grp-logo.jpg",
   "Oaklanduniversity.png",
-  "occ-horizontal-green1.png",
-  "pictures-of-hope-logo.jpg",
   "v-2-north-on-woodward-full-logo-wbe.png",
+  "UAW-Logo.png",
 ];
 
 interface DynamicSponsor {
