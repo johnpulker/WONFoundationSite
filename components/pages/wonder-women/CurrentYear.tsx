@@ -73,10 +73,10 @@ export default function CurrentYear() {
             {/* Content */}
             <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="text-center md:text-left max-w-3xl">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#E7C418]/20 rounded-full mb-4">
+                {/* <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#E7C418]/20 rounded-full mb-4">
                   <span className="text-[#E7C418] text-sm">✦</span>
                   <span className="text-[#E7C418] text-sm font-semibold tracking-wider uppercase">Save the Date</span>
-                </div>
+                </div> */}
                 <h3 className="text-3xl md:text-4xl font-heading text-white mb-3">
                   2026 WONder Women Awards Banquet
                 </h3>
