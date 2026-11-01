@@ -15,7 +15,8 @@ const navItems = [
   { href: "/directory", label: "Directory" },
   { href: "/wonder-women", label: "WONder Women" },
   { href: "/donate", label: "Donate" },
-  { href: "/sponsorships", label: "Sponsorships" },
+  // Hidden for now; the /sponsorships page still exists. Uncomment to show it again.
+  // { href: "/sponsorships", label: "Sponsorships" },
   { href: "/contact", label: "Contact" },
 ];
 
