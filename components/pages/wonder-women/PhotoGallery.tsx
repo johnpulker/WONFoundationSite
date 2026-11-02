@@ -13,19 +13,14 @@ interface GalleryPhoto {
   aspect_ratio: 'landscape' | 'portrait' | 'square';
 }
 
-const categories = [
-  { id: "all", label: "All Photos" },
-  { id: "2025-ww", label: "2025 WW" },
-  { id: "2024-ww", label: "2024 WW" },
-  { id: "2023-ww", label: "2023 WW" },
-  { id: "2022-ww", label: "2022 WW" },
-  { id: "networking", label: "Networking" },
-  { id: "events", label: "Events" },
-  { id: "speaker", label: "Speakers" },
-];
+interface GalleryCategory {
+  id: string;
+  label: string;
+}
 
 export default function PhotoGallery() {
   const [galleryImages, setGalleryImages] = useState<GalleryPhoto[]>([]);
+  const [allCategories, setAllCategories] = useState<GalleryCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedImage, setSelectedImage] = useState<GalleryPhoto | null>(null);
@@ -43,12 +38,21 @@ export default function PhotoGallery() {
       }
       const data = await response.json();
       setGalleryImages(data.photos || []);
+      setAllCategories(data.categories || []);
     } catch (err) {
       console.error("Error fetching gallery photos:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  // Filter buttons: "All Photos" plus every category that has at least one photo,
+  // in the order set in the admin
+  const usedCategoryIds = new Set(galleryImages.map((img) => img.category));
+  const categories: GalleryCategory[] = [
+    { id: "all", label: "All Photos" },
+    ...allCategories.filter((c) => usedCategoryIds.has(c.id)),
+  ];
 
   const filteredImages = selectedCategory === "all" 
     ? galleryImages 
@@ -147,11 +151,10 @@ export default function PhotoGallery() {
             {filteredImages.map((image, index) => (
             <motion.div
               key={image.id}
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              layout
+              viewport={{ once: true, margin: "200px 0px" }}
+              transition={{ duration: 0.3, delay: (index % 3) * 0.05 }}
               className={`group cursor-pointer ${
                 image.aspect_ratio === 'portrait' ? 'md:row-span-2' : ''
               }`}
@@ -169,7 +172,7 @@ export default function PhotoGallery() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    unoptimized
+                    priority={index < 3}
                   />
                   
                   {/* Content - visible by default */}

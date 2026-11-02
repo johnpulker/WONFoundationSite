@@ -27,8 +27,30 @@ export async function GET() {
       )
     }
 
+    // Filter buttons: categories in the admin's order. Falls back to the
+    // categories found on photos if migration 030 hasn't been run yet.
+    let categories: { id: string; label: string }[] = []
+    const { data: categoryRows, error: categoryError } = await supabase
+      .from('gallery_categories')
+      .select('id, label')
+      .order('sort_order', { ascending: true })
+      .order('label', { ascending: true })
+
+    if (!categoryError && categoryRows) {
+      categories = categoryRows
+    } else {
+      const seen = new Set<string>()
+      for (const photo of photos || []) {
+        if (photo.category && !seen.has(photo.category)) {
+          seen.add(photo.category)
+          categories.push({ id: photo.category, label: photo.category })
+        }
+      }
+    }
+
     return NextResponse.json({
       photos: photos || [],
+      categories,
     })
   } catch (error) {
     console.error('Error in gallery photos list GET:', error)

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import GalleryCategoriesManager from "@/components/admin/GalleryCategoriesManager";
+import { aspectRatioFromSize, type AspectRatio, type GalleryCategory } from "@/lib/gallery";
 
 interface GalleryPhoto {
   id: string;
@@ -13,15 +15,22 @@ interface GalleryPhoto {
   display_order: number;
 }
 
-const categories = [
-  { id: "2025-ww", label: "2025 WW" },
-  { id: "2024-ww", label: "2024 WW" },
-  { id: "2023-ww", label: "2023 WW" },
-  { id: "2022-ww", label: "2022 WW" },
-  { id: "networking", label: "Networking" },
-  { id: "events", label: "Events" },
-  { id: "speaker", label: "Speakers" },
-];
+/** Reads an image file's real width/height in the browser and returns its shape. */
+function detectAspectRatio(file: File): Promise<AspectRatio | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = document.createElement("img");
+    img.onload = () => {
+      resolve(aspectRatioFromSize(img.naturalWidth, img.naturalHeight));
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      resolve(null);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  });
+}
 
 const aspectRatios = [
   { id: "landscape", label: "Landscape" },
@@ -44,20 +53,48 @@ export default function GalleryPhotosView() {
   const [bulkUploadProgress, setBulkUploadProgress] = useState<{ uploaded: number; total: number; compressing?: number }>({ uploaded: 0, total: 0 });
   const [showBulkUploadYearModal, setShowBulkUploadYearModal] = useState(false);
   const [bulkUploadYear, setBulkUploadYear] = useState(new Date().getFullYear());
-  const [bulkUploadCategory, setBulkUploadCategory] = useState('2025-ww');
+  const [bulkUploadCategory, setBulkUploadCategory] = useState('');
+  const [categories, setCategories] = useState<GalleryCategory[]>([]);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [detectedShape, setDetectedShape] = useState<AspectRatio | null>(null);
   const [bulkUploadCaption, setBulkUploadCaption] = useState('');
   const [formData, setFormData] = useState({
     image_url: "",
     caption: "",
     year: new Date().getFullYear(),
-    category: "2025-ww",
+    category: "",
     aspect_ratio: "landscape" as 'landscape' | 'portrait' | 'square',
     display_order: 0,
   });
 
   useEffect(() => {
     fetchPhotos();
+    fetchCategories();
   }, []);
+
+  // First category in the admin's order is the default for new uploads
+  const defaultCategoryId = () => categories[0]?.id || "";
+
+  const fetchCategories = async (selectId?: string) => {
+    try {
+      const response = await fetch('/api/admin/gallery-categories', { credentials: 'include' });
+      if (!response.ok) {
+        console.error("Error fetching gallery categories:", response.statusText);
+        return;
+      }
+      const data = await response.json();
+      const list: GalleryCategory[] = data.categories || [];
+      setCategories(list);
+      const fallback = selectId || list[0]?.id || "";
+      // Pick a category for forms that don't have one yet (or select the one just created)
+      setFormData((prev) => (selectId || !prev.category ? { ...prev, category: fallback } : prev));
+      setBulkUploadCategory((prev) => (selectId || !prev ? fallback : prev));
+    } catch (err) {
+      console.error("Error fetching gallery categories:", err);
+    }
+  };
+
+  const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label || id;
 
   const fetchPhotos = async (page: number = 1) => {
     setLoading(true);
@@ -143,6 +180,14 @@ export default function GalleryPhotosView() {
     }
 
     setUploadingPhoto(true);
+
+    // Detect landscape / portrait / square from the photo itself (same rule as bulk upload)
+    const shape = await detectAspectRatio(file);
+    if (shape) {
+      setDetectedShape(shape);
+      setFormData(prev => ({ ...prev, aspect_ratio: shape }));
+    }
+
     try {
       const password = sessionStorage.getItem('admin_password');
       
@@ -482,6 +527,10 @@ export default function GalleryPhotosView() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.category) {
+      alert("Please choose a category (or create one with + New category).");
+      return;
+    }
     setSaving(true);
 
     try {
@@ -526,12 +575,14 @@ export default function GalleryPhotosView() {
         image_url: "",
         caption: "",
         year: new Date().getFullYear(),
-        category: "2025-ww",
+        category: defaultCategoryId(),
         aspect_ratio: "landscape",
         display_order: 0,
       });
       setPhotoPreview(null);
+      setDetectedShape(null);
       fetchPhotos();
+      fetchCategories();
     } catch (err: any) {
       console.error("Error saving photo:", err);
       alert(err.message || "Failed to save photo.");
@@ -551,6 +602,7 @@ export default function GalleryPhotosView() {
       display_order: photo.display_order,
     });
     setPhotoPreview(photo.image_url);
+    setDetectedShape(null);
     setShowForm(true);
   };
 
@@ -687,6 +739,18 @@ export default function GalleryPhotosView() {
       <div className="flex justify-between items-center mb-8">
         <h2 className="text-3xl font-heading text-neutral-900">Gallery Photos</h2>
           <div className="flex items-center gap-3">
+            {/* Manage Categories Button */}
+            <button
+              type="button"
+              onClick={() => setShowCategoryManager(true)}
+              className="px-6 py-3 border-2 border-neutral-200 bg-white text-neutral-800 font-semibold rounded-xl shadow-sm hover:border-[#E7C418] hover:shadow transition-all flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              Manage Categories
+            </button>
+
             {/* Bulk Upload Button */}
             <div className="relative">
               <input
@@ -749,11 +813,12 @@ export default function GalleryPhotosView() {
               image_url: "",
               caption: "",
               year: new Date().getFullYear(),
-              category: "2025-ww",
+              category: defaultCategoryId(),
               aspect_ratio: "landscape",
               display_order: 0,
             });
             setPhotoPreview(null);
+            setDetectedShape(null);
             setShowForm(true);
           }}
           className="px-6 py-3 bg-gradient-to-r from-[#871c1c] to-[#a02323] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
@@ -765,6 +830,15 @@ export default function GalleryPhotosView() {
         </button>
           </div>
       </div>
+
+      {/* Category Manager */}
+      {showCategoryManager && (
+        <GalleryCategoriesManager
+          categories={categories}
+          onClose={() => setShowCategoryManager(false)}
+          onChanged={(createdId) => fetchCategories(createdId)}
+        />
+      )}
 
       {/* Form Modal */}
       {showForm && (
@@ -832,7 +906,7 @@ export default function GalleryPhotosView() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                           <span className="text-sm text-neutral-600">Click to upload photo</span>
-                          <span className="text-xs text-neutral-400 mt-1">JPEG, PNG, or WebP (max 50MB)</span>
+                          <span className="text-xs text-neutral-400 mt-1">JPEG, PNG, or WebP</span>
                         </div>
                       )}
                     </label>
@@ -885,15 +959,25 @@ export default function GalleryPhotosView() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Category *
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-semibold text-neutral-700">
+                      Category *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryManager(true)}
+                      className="text-xs font-semibold text-[#871c1c] hover:underline"
+                    >
+                      + New category
+                    </button>
+                  </div>
                   <select
                     required
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
                   >
+                    {categories.length === 0 && <option value="">No categories yet</option>}
                     {categories.map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.label}</option>
                     ))}
@@ -902,18 +986,26 @@ export default function GalleryPhotosView() {
 
                 <div>
                   <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Aspect Ratio *
+                    Shape *
                   </label>
                   <select
                     required
                     value={formData.aspect_ratio}
-                    onChange={(e) => setFormData({ ...formData, aspect_ratio: e.target.value as 'landscape' | 'portrait' | 'square' })}
+                    onChange={(e) => {
+                      setDetectedShape(null);
+                      setFormData({ ...formData, aspect_ratio: e.target.value as AspectRatio });
+                    }}
                     className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
                   >
                     {aspectRatios.map(ar => (
                       <option key={ar.id} value={ar.id}>{ar.label}</option>
                     ))}
                   </select>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    {detectedShape
+                      ? `Detected automatically from the photo (${detectedShape}).`
+                      : "Set automatically when you upload a photo. You can change it."}
+                  </p>
                 </div>
               </div>
 
@@ -973,15 +1065,25 @@ export default function GalleryPhotosView() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                  Category *
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-neutral-700">
+                    Category *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryManager(true)}
+                    className="text-xs font-semibold text-[#871c1c] hover:underline"
+                  >
+                    + New category
+                  </button>
+                </div>
                 <select
                   required
                   value={bulkUploadCategory}
                   onChange={(e) => setBulkUploadCategory(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border-2 border-neutral-200 focus:border-[#E7C418] focus:ring-2 focus:ring-[#E7C418]/20 transition-all"
                 >
+                  {categories.length === 0 && <option value="">No categories yet</option>}
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>
                       {cat.label}
@@ -1015,7 +1117,7 @@ export default function GalleryPhotosView() {
                   onClick={() => {
                     setShowBulkUploadYearModal(false);
                     setBulkUploadYear(new Date().getFullYear());
-                    setBulkUploadCategory('2025-ww');
+                    setBulkUploadCategory(defaultCategoryId());
                     setBulkUploadCaption('');
                   }}
                   className="flex-1 px-6 py-3 border-2 border-neutral-200 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-all"
@@ -1025,6 +1127,10 @@ export default function GalleryPhotosView() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (!bulkUploadCategory) {
+                      alert("Please choose a category (or create one with + New category).");
+                      return;
+                    }
                     setShowBulkUploadYearModal(false);
                     // Trigger the file input
                     const fileInput = document.getElementById('bulk-upload') as HTMLInputElement;
@@ -1068,7 +1174,7 @@ export default function GalleryPhotosView() {
               <div className="p-4">
                 <p className="font-semibold text-neutral-900 mb-1 line-clamp-2">{photo.caption}</p>
                 <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
-                  <span className="capitalize">{photo.category}</span>
+                  <span>{categoryLabel(photo.category)}</span>
                   <span>•</span>
                   <span className="capitalize">{photo.aspect_ratio}</span>
                 </div>

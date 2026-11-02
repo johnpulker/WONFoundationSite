@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { validateAdminSession } from '@/lib/adminSessionServer'
 import sharp from 'sharp'
+import { aspectRatioFromSize } from '@/lib/gallery'
 
 // Configure route to handle large file uploads (up to 2GB per file)
 export const runtime = 'nodejs'
@@ -55,10 +56,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No files provided' }, { status: 400 })
     }
 
-    // Get category from formData (default to '2025-ww' if not provided)
-    const category = (formData.get('category') as string) || '2025-ww'
-    const validCategories = ['2025-ww', '2024-ww', '2023-ww', '2022-ww', 'networking', 'events', 'speaker']
-    const selectedCategory = validCategories.includes(category) ? category : '2025-ww'
+    // Category must be one of the admin-managed categories
+    const selectedCategory = (formData.get('category') as string) || ''
+    if (!selectedCategory) {
+      return NextResponse.json({ error: 'Please choose a category.' }, { status: 400 })
+    }
+    {
+      const { data: categoryRow, error: categoryError } = await createAdminClient()
+        .from('gallery_categories')
+        .select('id')
+        .eq('id', selectedCategory)
+        .maybeSingle()
+      if (categoryError || !categoryRow) {
+        return NextResponse.json(
+          { error: `Unknown category "${selectedCategory}". Please pick a category from the list.` },
+          { status: 400 }
+        )
+      }
+    }
 
     // Get year from formData (default to current year if not provided)
     const yearStr = formData.get('year') as string
@@ -201,21 +216,13 @@ export async function POST(request: NextRequest) {
             const metadata = await sharp(buffer).metadata()
             
             if (metadata.width && metadata.height) {
-              const ratio = metadata.width / metadata.height
-              
-              // Determine aspect ratio:
-              // - Square: ratio between 0.95 and 1.05 (allowing small tolerance)
-              // - Portrait: height > width (ratio < 1)
-              // - Landscape: width > height (ratio > 1)
-              if (ratio >= 0.95 && ratio <= 1.05) {
-                aspectRatio = 'square'
-              } else if (ratio < 1) {
-                aspectRatio = 'portrait'
-              } else {
-                aspectRatio = 'landscape'
-              }
-              
-              console.log(`[Bulk Upload] ${file.name}: ${metadata.width}x${metadata.height} (ratio: ${ratio.toFixed(2)}) → ${aspectRatio}`)
+              // Phone photos are often stored sideways with a "rotate" flag (EXIF orientation 5-8)
+              const rotated = (metadata.orientation || 1) >= 5
+              const width = rotated ? metadata.height : metadata.width
+              const height = rotated ? metadata.width : metadata.height
+              aspectRatio = aspectRatioFromSize(width, height)
+
+              console.log(`[Bulk Upload] ${file.name}: ${width}x${height} → ${aspectRatio}`)
             } else {
               console.warn(`[Bulk Upload] Could not get dimensions for ${file.name}, defaulting to landscape`)
             }

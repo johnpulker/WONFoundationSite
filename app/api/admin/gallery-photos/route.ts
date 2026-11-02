@@ -85,6 +85,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const adminClient = createAdminClient()
 
+    if (!body.category) {
+      return NextResponse.json({ error: 'Please choose a category.' }, { status: 400 })
+    }
+
     // Get max order
     const { data: existing } = await adminClient
       .from('gallery_photos')
@@ -100,7 +104,7 @@ export async function POST(request: NextRequest) {
         image_url: body.image_url,
         caption: body.caption,
         year: body.year,
-        category: body.category || '2025-ww',
+        category: body.category,
         aspect_ratio: body.aspect_ratio || 'landscape',
         display_order: body.display_order ?? maxOrder + 1,
       })
