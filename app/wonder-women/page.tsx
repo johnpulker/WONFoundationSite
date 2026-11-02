@@ -3,7 +3,7 @@ import Overview from "@/components/pages/wonder-women/Overview";
 import CurrentYear from "@/components/pages/wonder-women/CurrentYear";
 import PastHonorees from "@/components/pages/wonder-women/PastHonorees";
 import PhotoGallery from "@/components/pages/wonder-women/PhotoGallery";
-import SponsorsMarquee from "@/components/sections/SponsorsMarquee";
+import SponsorsDisplay from "@/components/pages/wonder-women/SponsorsDisplay";
 
 const subNavItems = [
   { id: "overview", label: "Overview" },
@@ -123,9 +123,9 @@ export default function WonderWomenPage() {
           
           <WonderDivider variant="stars" />
           
-          {/* Sponsors (same logo slideshow as the homepage) */}
+          {/* Sponsors by level (static) */}
           <section id="sponsors" className="scroll-mt-24 pb-8">
-            <SponsorsMarquee />
+            <SponsorsDisplay />
           </section>
         </div>
       </div>
